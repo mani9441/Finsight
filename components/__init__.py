@@ -6,6 +6,8 @@ from components.loaders import render_skeleton_loader, render_section_loader
 from components.overview_card import render_company_overview_module
 from components.historical_chart import render_time_range_selector, render_historical_price_chart
 from components.ratio_cards import render_company_ratios_module
+from components.news_cards import render_news_sentiment_module
+from components.risk_cards import render_company_risk_module
 from components.cards import (
     render_company_profile_card,
     render_metric_card,
@@ -24,6 +26,8 @@ __all__ = [
     "render_time_range_selector",
     "render_historical_price_chart",
     "render_company_ratios_module",
+    "render_news_sentiment_module",
+    "render_company_risk_module",
     "render_company_profile_card",
     "render_metric_card",
     "render_sentiment_card",

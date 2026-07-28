@@ -5,7 +5,7 @@ Session Cache helper utilities for managing Streamlit session state for financia
 import streamlit as st
 from datetime import datetime
 from typing import Optional, List
-from models import CompanyOverview, HistoricalPrice, FinancialRatios
+from models import CompanyOverview, HistoricalPrice, FinancialRatios, NewsArticle, SentimentResult, RiskAssessment
 
 OVERVIEW_DATA_KEY = "overview_data"
 OVERVIEW_TIMESTAMP_KEY = "overview_timestamp"
@@ -24,6 +24,19 @@ RATIOS_DATA_KEY = "financial_ratios"
 RATIOS_TIMESTAMP_KEY = "ratio_timestamp"
 RATIOS_LOADING_KEY = "ratio_loading"
 RATIOS_ERROR_KEY = "ratio_error"
+
+# Phase 9 Cache Keys
+NEWS_ARTICLES_KEY = "news_articles"
+OVERALL_SENTIMENT_KEY = "overall_sentiment"
+NEWS_TIMESTAMP_KEY = "news_timestamp"
+NEWS_LOADING_KEY = "news_loading"
+NEWS_ERROR_KEY = "news_error"
+
+# Phase 10 Cache Keys
+RISK_DATA_KEY = "risk_assessment"
+RISK_TIMESTAMP_KEY = "risk_timestamp"
+RISK_LOADING_KEY = "risk_loading"
+RISK_ERROR_KEY = "risk_error"
 
 
 def initialize_overview_session():
@@ -274,4 +287,183 @@ def clear_ratios_cache():
     st.session_state[RATIOS_TIMESTAMP_KEY] = None
     st.session_state[RATIOS_LOADING_KEY] = False
     st.session_state[RATIOS_ERROR_KEY] = None
+
+
+# =====================================================================
+# PHASE 9 NEWS RETRIEVAL & SENTIMENT ANALYSIS SESSION MANAGEMENT
+# =====================================================================
+
+def initialize_news_session():
+    """
+    Initializes required session keys for the News Sentiment module.
+    """
+    if NEWS_ARTICLES_KEY not in st.session_state:
+        st.session_state[NEWS_ARTICLES_KEY] = None
+    if OVERALL_SENTIMENT_KEY not in st.session_state:
+        st.session_state[OVERALL_SENTIMENT_KEY] = None
+    if NEWS_TIMESTAMP_KEY not in st.session_state:
+        st.session_state[NEWS_TIMESTAMP_KEY] = None
+    if NEWS_LOADING_KEY not in st.session_state:
+        st.session_state[NEWS_LOADING_KEY] = False
+    if NEWS_ERROR_KEY not in st.session_state:
+        st.session_state[NEWS_ERROR_KEY] = None
+
+
+def get_cached_news() -> Optional[List[NewsArticle]]:
+    """
+    Retrieves the cached NewsArticle list from the session state.
+    """
+    return st.session_state.get(NEWS_ARTICLES_KEY)
+
+
+def set_cached_news(articles: Optional[List[NewsArticle]]):
+    """
+    Stores the NewsArticle list and updates retrieval timestamp.
+    """
+    st.session_state[NEWS_ARTICLES_KEY] = articles
+    if articles is not None:
+        st.session_state[NEWS_TIMESTAMP_KEY] = datetime.now()
+    else:
+        st.session_state[NEWS_TIMESTAMP_KEY] = None
+
+
+def get_cached_sentiment() -> Optional[SentimentResult]:
+    """
+    Retrieves the cached SentimentResult summary model from the session state.
+    """
+    return st.session_state.get(OVERALL_SENTIMENT_KEY)
+
+
+def set_cached_sentiment(sentiment: Optional[SentimentResult]):
+    """
+    Stores the SentimentResult summary model.
+    """
+    st.session_state[OVERALL_SENTIMENT_KEY] = sentiment
+
+
+def get_news_timestamp() -> Optional[datetime]:
+    """
+    Retrieves the timestamp when the news articles were loaded.
+    """
+    return st.session_state.get(NEWS_TIMESTAMP_KEY)
+
+
+def get_news_loading_status() -> bool:
+    """
+    Checks if the news sentiment module is currently loading data.
+    """
+    return st.session_state.get(NEWS_LOADING_KEY, False)
+
+
+def set_news_loading_status(status: bool):
+    """
+    Sets loading status for the news sentiment module.
+    """
+    st.session_state[NEWS_LOADING_KEY] = status
+
+
+def get_news_error() -> Optional[str]:
+    """
+    Retrieves errors encountered during news retrieval and sentiment analysis.
+    """
+    return st.session_state.get(NEWS_ERROR_KEY)
+
+
+def set_news_error(error: Optional[str]):
+    """
+    Stores error state message for the news sentiment module.
+    """
+    st.session_state[NEWS_ERROR_KEY] = error
+
+
+def clear_news_cache():
+    """
+    Clears cached news articles, sentiment analytics, and timestamps.
+    """
+    st.session_state[NEWS_ARTICLES_KEY] = None
+    st.session_state[OVERALL_SENTIMENT_KEY] = None
+    st.session_state[NEWS_TIMESTAMP_KEY] = None
+    st.session_state[NEWS_LOADING_KEY] = False
+    st.session_state[NEWS_ERROR_KEY] = None
+
+
+# =====================================================================
+# PHASE 10 RISK INDICATOR SESSION MANAGEMENT
+# =====================================================================
+
+def initialize_risk_session():
+    """
+    Initializes required session keys for the Risk Indicator module.
+    """
+    if RISK_DATA_KEY not in st.session_state:
+        st.session_state[RISK_DATA_KEY] = None
+    if RISK_TIMESTAMP_KEY not in st.session_state:
+        st.session_state[RISK_TIMESTAMP_KEY] = None
+    if RISK_LOADING_KEY not in st.session_state:
+        st.session_state[RISK_LOADING_KEY] = False
+    if RISK_ERROR_KEY not in st.session_state:
+        st.session_state[RISK_ERROR_KEY] = None
+
+
+def get_cached_risk() -> Optional[RiskAssessment]:
+    """
+    Retrieves the cached RiskAssessment model from the session state.
+    """
+    return st.session_state.get(RISK_DATA_KEY)
+
+
+def set_cached_risk(assessment: Optional[RiskAssessment]):
+    """
+    Stores the RiskAssessment model and updates retrieval timestamp.
+    """
+    st.session_state[RISK_DATA_KEY] = assessment
+    if assessment is not None:
+        st.session_state[RISK_TIMESTAMP_KEY] = datetime.now()
+    else:
+        st.session_state[RISK_TIMESTAMP_KEY] = None
+
+
+def get_risk_timestamp() -> Optional[datetime]:
+    """
+    Retrieves the timestamp when the risk assessment was computed.
+    """
+    return st.session_state.get(RISK_TIMESTAMP_KEY)
+
+
+def get_risk_loading_status() -> bool:
+    """
+    Checks if the risk indicator module is currently evaluating data.
+    """
+    return st.session_state.get(RISK_LOADING_KEY, False)
+
+
+def set_risk_loading_status(status: bool):
+    """
+    Sets loading status for the risk indicator module.
+    """
+    st.session_state[RISK_LOADING_KEY] = status
+
+
+def get_risk_error() -> Optional[str]:
+    """
+    Retrieves errors encountered during risk evaluation.
+    """
+    return st.session_state.get(RISK_ERROR_KEY)
+
+
+def set_risk_error(error: Optional[str]):
+    """
+    Stores error state message for the risk indicator module.
+    """
+    st.session_state[RISK_ERROR_KEY] = error
+
+
+def clear_risk_cache():
+    """
+    Clears cached risk models, status indicators, and timestamps.
+    """
+    st.session_state[RISK_DATA_KEY] = None
+    st.session_state[RISK_TIMESTAMP_KEY] = None
+    st.session_state[RISK_LOADING_KEY] = False
+    st.session_state[RISK_ERROR_KEY] = None
 

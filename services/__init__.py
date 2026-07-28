@@ -26,6 +26,12 @@ from services.finance.ratio_service import FinancialRatioService
 from services.finance.ratio_mapper import FinancialRatioMapper
 from services.finance.ratio_controller import RatioController
 from services.news import NewsService, NewsMapper
+from services.news.news_controller import NewsController
+from services.news.sentiment_analyzer import SentimentAnalyzer
+from services.news.sentiment_aggregator import SentimentAggregator
+from services.finance.risk_service import RiskEvaluationService
+from services.finance.risk_rules_engine import RiskRulesEngine
+from services.finance.risk_controller import RiskController
 from services.ai import LlmService, PromptBuilder
 
 __all__ = [
@@ -49,12 +55,15 @@ __all__ = [
     "HistoricalPriceService",
     "FinancialRatioService",
     "NewsService",
+    "RiskEvaluationService",
     "LlmService",
     
     # Controllers
     "OverviewController",
     "HistoricalPriceController",
     "RatioController",
+    "NewsController",
+    "RiskController",
     
     # Utilities
     "FinanceMapper",
@@ -63,6 +72,9 @@ __all__ = [
     "TimeRangeManager",
     "FinancialRatioMapper",
     "NewsMapper",
+    "SentimentAnalyzer",
+    "SentimentAggregator",
+    "RiskRulesEngine",
     "PromptBuilder",
 ]
 

@@ -144,3 +144,15 @@ class IFinancialRatioService(ABC):
         Retrieves key financial ratios (valuation, profitability, EPS, dividends) for a specific ticker.
         """
         pass
+
+
+class IRiskService(ABC):
+    """
+    Interface for evaluating corporate investment risk.
+    """
+    @abstractmethod
+    def evaluate_risk(self, ticker: str, ratios: FinancialRatios, sentiment: SentimentResult) -> RiskAssessment:
+        """
+        Evaluates risk indicators from ratios and sentiment to return a RiskAssessment.
+        """
+        pass

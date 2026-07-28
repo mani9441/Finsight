@@ -9,7 +9,8 @@ class RiskAssessment:
     """
     ticker: str
     risk_score: float                     # Range e.g. 0.0 (safest) to 100.0 (riskiest)
-    risk_level: str                       # Low, Medium, High, Critical
+    risk_level: str                       # Low Risk, Moderate Risk, High Risk
+    risk_explanation: str = ""
     risk_factors: List[str] = field(default_factory=list)  # Detailed list of indicators
     assessed_at: datetime = field(default_factory=datetime.now)
 

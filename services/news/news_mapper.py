@@ -2,6 +2,7 @@
 Mapper utility for translating raw news API results into standardized NewsArticle dataclasses.
 """
 
+import hashlib
 from datetime import datetime
 from typing import Dict, Any
 from models import NewsArticle
@@ -61,6 +62,12 @@ class NewsMapper:
             summary = raw_article.get("summary") or ""
             content = raw_article.get("content") or summary or title
 
+        # Compute or retrieve UUID
+        article_id = raw_article.get("uuid") or raw_article.get("id")
+        if not article_id:
+            hash_str = f"{title}_{url}_{published_at.timestamp()}"
+            article_id = hashlib.md5(hash_str.encode("utf-8")).hexdigest()
+
         return NewsArticle(
             title=title,
             source=source,
@@ -68,5 +75,7 @@ class NewsMapper:
             url=url,
             summary=summary,
             content=content,
-            sentiment_score=None  # Assigned in later phases
+            id=article_id,
+            sentiment_score=None,
+            sentiment_label="Neutral"
         )

@@ -5,6 +5,8 @@ Implements:
 - Phase 6 — Financial Overview Module
 - Phase 7 — Historical Stock Price Visualization Module
 - Phase 8 — Financial Ratios Module
+- Phase 9 — News Retrieval & Sentiment Analysis Module
+- Phase 10 — Risk Indicator Module
 """
 
 import streamlit as st
@@ -18,7 +20,7 @@ from core.constants import (
     APP_TITLE,
     APP_TAGLINE
 )
-from models import CompanyInfo, CompanyOverview, HistoricalPrice, FinancialRatios
+from models import CompanyInfo, CompanyOverview, HistoricalPrice, FinancialRatios, NewsArticle, SentimentResult, RiskAssessment
 from services import (
     FinanceService, 
     FinancialOverviewService, 
@@ -26,7 +28,11 @@ from services import (
     HistoricalPriceService,
     HistoricalPriceController,
     FinancialRatioService,
-    RatioController
+    RatioController,
+    NewsService,
+    NewsController,
+    RiskEvaluationService,
+    RiskController
 )
 from services.common.response_validator import ResponseValidator
 from core.exceptions import InvalidInputError, DataRetrievalError
@@ -39,7 +45,9 @@ from components import (
     render_company_overview_module,
     render_time_range_selector,
     render_historical_price_chart,
-    render_company_ratios_module
+    render_company_ratios_module,
+    render_news_sentiment_module,
+    render_company_risk_module
 )
 from utils.session_cache import (
     initialize_overview_session,
@@ -71,7 +79,29 @@ from utils.session_cache import (
     set_ratios_loading_status,
     get_ratios_error,
     set_ratios_error,
-    clear_ratios_cache
+    clear_ratios_cache,
+    
+    # Phase 9 Cache Helpers
+    initialize_news_session,
+    get_cached_news,
+    set_cached_news,
+    get_cached_sentiment,
+    set_cached_sentiment,
+    get_news_loading_status,
+    set_news_loading_status,
+    get_news_error,
+    set_news_error,
+    clear_news_cache,
+    
+    # Phase 10 Cache Helpers
+    initialize_risk_session,
+    get_cached_risk,
+    set_cached_risk,
+    get_risk_loading_status,
+    set_risk_loading_status,
+    get_risk_error,
+    set_risk_error,
+    clear_risk_cache
 )
 
 # Initialize logging
@@ -120,6 +150,12 @@ def initialize_session_state():
     # Phase 8 Session Ratios Cache tracking
     initialize_ratios_session()
 
+    # Phase 9 Session News Cache tracking
+    initialize_news_session()
+
+    # Phase 10 Session Risk Cache tracking
+    initialize_risk_session()
+
 
 def render_header():
     """
@@ -157,6 +193,8 @@ def trigger_search_pipeline(query: str):
         clear_overview_cache()
         clear_historical_cache()
         clear_ratios_cache()
+        clear_news_cache()
+        clear_risk_cache()
         set_selected_time_range("1 Year")
         
         logger.info(f"UI state set to LOADING for query: '{query_clean}'")
@@ -169,6 +207,8 @@ def trigger_search_pipeline(query: str):
         clear_overview_cache()
         clear_historical_cache()
         clear_ratios_cache()
+        clear_news_cache()
+        clear_risk_cache()
         logger.warning(f"Input validation failed for query '{query}': {e}")
 
 
@@ -193,6 +233,8 @@ def execute_company_resolution():
             clear_overview_cache()
             clear_historical_cache()
             clear_ratios_cache()
+            clear_news_cache()
+            clear_risk_cache()
             logger.warning(f"Resolution failed to locate any public company profile for '{query}'")
         else:
             profile = profiles[0]
@@ -210,6 +252,8 @@ def execute_company_resolution():
         clear_overview_cache()
         clear_historical_cache()
         clear_ratios_cache()
+        clear_news_cache()
+        clear_risk_cache()
         logger.error(f"Data retrieval failed during resolution: {e}")
     except Exception as e:
         st.session_state.ui_state = "error"
@@ -219,6 +263,8 @@ def execute_company_resolution():
         clear_overview_cache()
         clear_historical_cache()
         clear_ratios_cache()
+        clear_news_cache()
+        clear_risk_cache()
         logger.error(f"Unexpected error during resolution: {e}")
 
 
@@ -281,6 +327,8 @@ def main():
             clear_overview_cache()
             clear_historical_cache()
             clear_ratios_cache()
+            clear_news_cache()
+            clear_risk_cache()
             set_selected_time_range("1 Year")
             logger.info("Dashboard state context reset.")
             st.rerun()
@@ -476,12 +524,105 @@ def main():
                     set_ratios_loading_status(True)
                     set_ratios_error(None)
                     st.rerun()
+
+            # -------------------------------------------------------------
+            # MODULE 4: News Retrieval & Sentiment Analysis Module (Phase 9)
+            # -------------------------------------------------------------
+            # Ensure ratios loaded successfully before displaying news sentiment
+            if cached_overview and cached_overview.ticker == profile.ticker and cached_ratios:
+                st.markdown("---")
+                
+                cached_news = get_cached_news()
+                cached_sentiment = get_cached_sentiment()
+                news_err = get_news_error()
+                
+                if get_news_loading_status():
+                    render_section_loader("News & Sentiment Analysis", height=300)
+                    
+                    try:
+                        news_service = NewsService()
+                        news_controller = NewsController(news_service)
+                        articles, sentiment = news_controller.get_news_with_sentiment(profile.ticker)
+                        set_cached_news(articles)
+                        set_cached_sentiment(sentiment)
+                        set_news_error(None)
+                    except Exception as e:
+                        logger.error(f"News retrieval failed for ticker '{profile.ticker}': {e}")
+                        set_news_error("Unable to retrieve recent news.")
+                        set_cached_news(None)
+                        set_cached_sentiment(None)
+                    finally:
+                        set_news_loading_status(False)
+                        st.rerun()
+                        
+                elif news_err:
+                    render_error_banner(
+                        message=news_err,
+                        title="News Load Failure"
+                    )
+                    if st.button("🔄 Retry Loading News", key="retry_news"):
+                        set_news_loading_status(True)
+                        set_news_error(None)
+                        st.rerun()
+                        
+                elif cached_news is not None and cached_sentiment is not None:
+                    # Renders aggregated sentiment card and chronological feed cards list
+                    render_news_sentiment_module(cached_news, cached_sentiment)
+                else:
+                    set_news_loading_status(True)
+                    set_news_error(None)
+                    st.rerun()
+
+            # -------------------------------------------------------------
+            # MODULE 5: Risk Indicator Module (Phase 10)
+            # -------------------------------------------------------------
+            # Ensure news sentiment loaded successfully before assessing risk
+            if cached_overview and cached_overview.ticker == profile.ticker and cached_news is not None and cached_sentiment is not None:
+                st.markdown("---")
+                
+                cached_risk = get_cached_risk()
+                risk_err = get_risk_error()
+                
+                if get_risk_loading_status():
+                    render_section_loader("Investment Risk Assessment", height=200)
+                    
+                    try:
+                        risk_service = RiskEvaluationService()
+                        risk_controller = RiskController(risk_service)
+                        risk_assessment = risk_controller.get_risk_assessment(profile.ticker, cached_ratios, cached_sentiment)
+                        set_cached_risk(risk_assessment)
+                        set_risk_error(None)
+                    except Exception as e:
+                        logger.error(f"Risk evaluation failed for ticker '{profile.ticker}': {e}")
+                        set_risk_error(str(e) or "Unable to generate the risk indicator.")
+                        set_cached_risk(None)
+                    finally:
+                        set_risk_loading_status(False)
+                        st.rerun()
+                        
+                elif risk_err:
+                    render_error_banner(
+                        message=risk_err,
+                        title="Risk Assessment Failure"
+                    )
+                    if st.button("🔄 Retry Generating Risk Indicator", key="retry_risk"):
+                        set_risk_loading_status(True)
+                        set_risk_error(None)
+                        st.rerun()
+                        
+                elif cached_risk:
+                    # Renders overall risk badge and supporting factor list
+                    render_company_risk_module(cached_risk)
+                else:
+                    set_risk_loading_status(True)
+                    set_risk_error(None)
+                    st.rerun()
                 
                 # Standard placeholder text for remaining modules
                 st.markdown(
                     """
                     <div style="margin-top: 2rem; text-align: center; color: #64748B; font-size: 0.85rem; font-style: italic;">
-                        💡 News sentiment, risk advisor and AI company summary panels are disabled during the Financial Ratios Phase verification.
+                        💡 AI company advisory summary panel is disabled during the Risk Indicator Phase verification.
                     </div>
                     """,
                     unsafe_allow_html=True
@@ -493,7 +634,7 @@ def main():
     st.markdown(
         f"""
         <div class="footer-text">
-            {APP_TITLE} • Financial Ratios Module • Verified at {datetime.now().strftime('%H:%M:%S')}
+            {APP_TITLE} • Risk Indicator Module • Verified at {datetime.now().strftime('%H:%M:%S')}
         </div>
         """,
         unsafe_allow_html=True
