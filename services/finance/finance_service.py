@@ -24,23 +24,54 @@ class FinanceService(ICompanySearchService, IFinancialService):
     def search_companies(self, query: str) -> List[CompanyInfo]:
         """
         Searches for companies matching the query (ticker or name).
-        In yfinance, searches are resolved by attempting to load the ticker profile directly.
+        First attempts direct symbol lookup. If that fails, attempts name search.
         """
-        logger.info(f"Searching companies for query: '{query}'")
-        if not query:
+        query_clean = query.strip()
+        if not query_clean:
             return []
 
-        ticker_str = query.strip().upper()
+        # 1. Attempt direct symbol lookup (major tickers are <= 5 characters)
+        if query_clean.isalnum() and len(query_clean) <= 5:
+            try:
+                # Basic validation checks
+                ResponseValidator.validate_ticker_input(query_clean)
+                profile = self.get_profile(query_clean)
+                if profile:
+                    logger.info(f"Direct symbol lookup succeeded for: {query_clean}")
+                    return [profile]
+            except Exception as e:
+                logger.info(f"Direct symbol lookup failed for '{query_clean}': {e}")
+
+        # 2. Attempt name resolution via Yahoo Finance Search API
+        logger.info(f"Attempting name resolution for query: '{query_clean}'")
         try:
-            # Validate input format first
-            ResponseValidator.validate_ticker_input(ticker_str)
-            profile = self.get_profile(ticker_str)
-            if profile:
-                return [profile]
+            search = yf.Search(query_clean)
+            quotes = getattr(search, "quotes", [])
+            
+            if not quotes:
+                logger.warning(f"No quotes returned from Search for query: '{query_clean}'")
+                return []
+                
+            for quote in quotes:
+                symbol = quote.get("symbol")
+                if not symbol:
+                    continue
+                try:
+                    profile = self.get_profile(symbol)
+                    if profile:
+                        logger.info(f"Name resolution succeeded. Resolved '{query_clean}' to ticker '{symbol}'")
+                        return [profile]
+                except Exception as e:
+                    logger.debug(f"Search result symbol '{symbol}' profile fetch failed: {e}")
+                    
+            logger.warning(f"Name resolution failed to find any valid company profiles for query '{query_clean}'")
             return []
+            
         except Exception as e:
-            logger.warning(f"No company resolved for search query '{query}': {e}")
-            return []
+            logger.error(f"Error during search resolution for query '{query_clean}': {e}")
+            raise DataRetrievalError(
+                f"Search service encountered a failure resolving query '{query_clean}': {str(e)}"
+            ) from e
 
     def get_profile(self, ticker: str) -> Optional[CompanyInfo]:
         """
@@ -65,6 +96,14 @@ class FinanceService(ICompanySearchService, IFinancialService):
                 return None
 
             profile = FinanceMapper.to_company_info(ticker_str, raw_info)
+            
+            # Enforce validation of complete identity model
+            if not profile.name or not profile.sector or not profile.industry or \
+               profile.sector == "Unknown" or profile.industry == "Unknown" or \
+               not profile.summary or profile.summary == "No business summary available.":
+                logger.warning(f"Resolved profile for Ticker '{ticker_str}' contains incomplete identity details. Rejecting.")
+                return None
+
             logger.info(f"Successfully retrieved profile for {ticker_str}: {profile.name}")
             return profile
 

@@ -1,228 +1,33 @@
 """
 FinSight Entry Point.
-Implements the user interface foundation, session state machine, and dashboard layout.
-Uses a mock application controller pipeline to populate UI cards and charts.
+Implements Phase 5 — Company Search Module.
+Accepts user input, validates it, resolves symbol or company name using Yahoo Finance,
+and establishes the active company context. Renders only the Company Overview section.
 """
 
 import streamlit as st
-import pandas as pd
-import numpy as np
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
-from typing import List, Optional
+from datetime import datetime
+from pathlib import Path
 
 # Core configurations
 from config import settings
 from core import setup_logging, get_logger
 from core.constants import (
     APP_TITLE,
-    APP_TAGLINE,
-    THEME_COLORS,
-    DEFAULT_CHART_LAYOUT
+    APP_TAGLINE
 )
-from utils.helpers import (
-    format_currency,
-    format_large_number,
-    format_percent,
-    get_date_range_days_ago
-)
-
-# Base models
-from models import (
-    CompanyInfo,
-    FinancialMetrics,
-    HistoricalPrice,
-    NewsArticle,
-    SentimentResult,
-    RiskAssessment,
-    AISummary,
-)
-
-# Services and Controller
-from services.interfaces import (
-    ICompanySearchService,
-    IFinancialService,
-    INewsService,
-    ISentimentService,
-    IRiskService,
-    IAISummaryService,
-)
-from services.controller import ApplicationController
+from models import CompanyInfo
+from services import FinanceService
 from services.common.response_validator import ResponseValidator
-from core.exceptions import InvalidInputError
+from core.exceptions import InvalidInputError, DataRetrievalError
 
 # UI components
 from components.empty_state import render_empty_state
-from components.loaders import render_skeleton_loader, render_section_loader
-from components.errors import render_error_banner, render_warning_banner
-from components.cards import (
-    render_company_profile_card,
-    render_metric_card,
-    render_sentiment_card,
-    render_risk_card,
-    render_ai_advisory_card
-)
+from components.errors import render_error_banner
 
 # Initialize logging
 setup_logging()
 logger = get_logger("app_ui")
-
-# =====================================================================
-# Mock Service Implementations for Phase 4 Visual Validation
-# =====================================================================
-
-class MockCompanySearchService(ICompanySearchService):
-    def search_companies(self, query: str) -> List[CompanyInfo]:
-        profile = self.get_profile(query)
-        return [profile] if profile else []
-
-    def get_profile(self, ticker: str) -> Optional[CompanyInfo]:
-        t = ticker.upper().strip()
-        if t == "AAPL":
-            return CompanyInfo(
-                ticker="AAPL", name="Apple Inc.", sector="Technology",
-                industry="Consumer Electronics", website="https://www.apple.com",
-                summary="Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide. The company also sells various related services."
-            )
-        elif t == "MSFT":
-            return CompanyInfo(
-                ticker="MSFT", name="Microsoft Corporation", sector="Technology",
-                industry="Software - Infrastructure", website="https://www.microsoft.com",
-                summary="Microsoft Corporation develops, licenses, and supports software, services, devices, and solutions worldwide. The company operates in Productivity, Intelligent Cloud, and More Personal Computing segments."
-            )
-        elif t == "GOOGL":
-            return CompanyInfo(
-                ticker="GOOGL", name="Alphabet Inc.", sector="Communication Services",
-                industry="Internet Content & Information", website="https://abc.xyz",
-                summary="Alphabet Inc. offers various products and platforms in the United States, Europe, the Middle East, Africa, the Asia-Pacific, Canada, and Latin America."
-            )
-        else:
-            return CompanyInfo(
-                ticker=t, name=f"{t} Corporation", sector="Financials",
-                industry="Asset Management", website=f"https://www.{t.lower()}.com",
-                summary=f"This is a placeholder description for {t} Corporation. It provides mock financial products, assets allocation services, and general market consultations globally."
-            )
-
-
-class MockFinancialService(IFinancialService):
-    def get_financial_metrics(self, ticker: str) -> Optional[FinancialMetrics]:
-        t = ticker.upper().strip()
-        # Custom mock metrics
-        if t == "AAPL":
-            return FinancialMetrics(
-                ticker=t, currency="USD", market_cap=2950000000000.0,
-                pe_ratio=31.4, ps_ratio=7.6, pb_ratio=38.2, enterprise_value=2980000000000.0,
-                revenue=383280000000.0, gross_profit=170000000000.0, ebitda=125000000000.0,
-                net_income=96990000000.0, gross_margin=0.441, operating_margin=0.301,
-                profit_margin=0.253, eps=6.13, debt_to_equity=145.8, free_cash_flow=99500000000.0,
-                roe=1.54, roa=0.27
-            )
-        else:
-            return FinancialMetrics(
-                ticker=t, currency="USD", market_cap=540000000000.0,
-                pe_ratio=22.5, ps_ratio=4.8, pb_ratio=6.2, enterprise_value=550000000000.0,
-                revenue=112000000000.0, gross_profit=48000000000.0, ebitda=29000000000.0,
-                net_income=18500000000.0, gross_margin=0.428, operating_margin=0.258,
-                profit_margin=0.165, eps=3.45, debt_to_equity=68.4, free_cash_flow=14500000000.0,
-                roe=0.185, roa=0.092
-            )
-
-    def get_historical_prices(self, ticker: str, start_date: datetime, end_date: datetime) -> List[HistoricalPrice]:
-        # Generate 30 days of mock stock pricing
-        np.random.seed(42)
-        days = (end_date - start_date).days
-        dates = pd.date_range(start=start_date, end=end_date, periods=days)
-        prices = []
-        base_price = 180.0 if ticker.upper() == "AAPL" else 120.0
-        
-        current_price = base_price
-        for d in dates:
-            change = np.random.normal(0.2, 2.5)
-            open_p = current_price
-            close_p = current_price + change
-            high_p = max(open_p, close_p) + abs(np.random.normal(1.0, 0.5))
-            low_p = min(open_p, close_p) - abs(np.random.normal(1.0, 0.5))
-            vol = int(np.random.normal(55000000, 15000000))
-            
-            prices.append(HistoricalPrice(
-                date=d, open_val=open_p, high_val=high_p, low_val=low_p, close_val=close_p, volume=vol
-            ))
-            current_price = close_p
-            
-        return prices
-
-
-class MockNewsService(INewsService):
-    def get_recent_news(self, ticker: str, limit: int = 10) -> List[NewsArticle]:
-        return [
-            NewsArticle(
-                title=f"{ticker} announces quarterly earnings beating wall street expectations",
-                source="Yahoo Finance", published_at=datetime.now() - timedelta(hours=3),
-                url="https://finance.yahoo.com", summary="The earnings report beat expectations on strong server demands.",
-                content=""
-            ),
-            NewsArticle(
-                title=f"Regulatory changes could impact {ticker} operations next fiscal year",
-                source="Wall Street Journal", published_at=datetime.now() - timedelta(days=1),
-                url="https://wsj.com", summary="Analysts review the structural guidelines passed by federal agencies.",
-                content=""
-            )
-        ]
-
-
-class MockSentimentService(ISentimentService):
-    def analyze_sentiment(self, articles: List[NewsArticle]) -> SentimentResult:
-        return SentimentResult(
-            ticker="MOCK", average_score=0.28, sentiment_label="Positive",
-            article_count=len(articles), positive_count=1, negative_count=0, neutral_count=1
-        )
-
-
-class MockRiskService(IRiskService):
-    def assess_risk(self, metrics: FinancialMetrics, sentiment: SentimentResult) -> RiskAssessment:
-        # Evaluate mock risk based on debt metrics
-        debt_level = metrics.debt_to_equity or 0.0
-        risk_score = min(max(debt_level * 0.3 + (1.0 - sentiment.average_score) * 20.0, 10.0), 95.0)
-        risk_level = "Low"
-        if risk_score > 75.0:
-            risk_level = "Critical"
-        elif risk_score > 50.0:
-            risk_level = "High"
-        elif risk_score > 30.0:
-            risk_level = "Medium"
-
-        return RiskAssessment(
-            ticker=metrics.ticker, risk_score=risk_score, risk_level=risk_level,
-            risk_factors=[
-                "Sensitivity to industry regulations and compliance guidelines.",
-                f"Debt-to-equity leverage calculated at {debt_level:.1f}%.",
-                "Competitive pressure in segment operations."
-            ]
-        )
-
-
-class MockAISummaryService(IAISummaryService):
-    def generate_advisory_summary(
-        self, company_info: CompanyInfo, metrics: FinancialMetrics, sentiment: SentimentResult, risk: RiskAssessment
-    ) -> AISummary:
-        exec_summary = (
-            f"An executive review of {company_info.name} ({company_info.ticker}) suggests a favorable corporate setup. "
-            f"Trading multipliers highlight key valuation levels, while news channels indicate a {sentiment.sentiment_label.lower()} market sentiment. "
-            f"Evaluations on leverage ratios indicate risk parameters are under a {risk.risk_level.lower()} threat level."
-        )
-        thesis = f"Long-term trends remain favorable despite short-term fluctuations in {company_info.sector}."
-        
-        return AISummary(
-            ticker=company_info.ticker,
-            executive_summary=exec_summary,
-            investment_thesis=thesis,
-            strengths=[f"Favorable position in {company_info.industry} segment.", "Healthy operational cash flows."],
-            weaknesses=["Increasing operational overhead constraints.", "Currency conversion exposures."]
-        )
-
-# =====================================================================
-# Main Streamlit Application UI
-# =====================================================================
 
 def load_css():
     """
@@ -240,18 +45,22 @@ def load_css():
 
 def initialize_session_state():
     """
-    Prepares session state variables for navigation and search tracking.
+    Prepares session state variables for navigation and search context tracking.
     """
     if "ticker_input" not in st.session_state:
         st.session_state.ticker_input = ""
-    if "selected_company" not in st.session_state:
-        st.session_state.selected_company = None
     if "ui_state" not in st.session_state:
         st.session_state.ui_state = "empty"  # empty, loading, success, error
-    if "analysis_results" not in st.session_state:
-        st.session_state.analysis_results = None
     if "error_message" not in st.session_state:
         st.session_state.error_message = ""
+        
+    # Phase 5 Session Context tracking
+    if "current_company" not in st.session_state:
+        st.session_state.current_company = None
+    if "search_status" not in st.session_state:
+        st.session_state.search_status = "empty"
+    if "search_timestamp" not in st.session_state:
+        st.session_state.search_timestamp = None
 
 
 def render_header():
@@ -262,117 +71,118 @@ def render_header():
         f"""
         <div class="hero-section">
             <h1 class="hero-title">{APP_TITLE}</h1>
-            <p class="hero-subtitle">{APP_TAGLINE} | UI Blueprint Dashboard</p>
+            <p class="hero-subtitle">{APP_TAGLINE} | Company Search Active</p>
         </div>
         """,
         unsafe_allow_html=True
     )
 
 
-def draw_historical_chart(prices: List[HistoricalPrice]):
+def trigger_search_pipeline(query: str):
     """
-    Draws a line plot of closing prices and bar plot of volume using Plotly.
+    Executes search input validation and triggers state transitions.
     """
-    if not prices:
-        st.info("No pricing history available to chart.")
-        return
-
-    dates = [p.date for p in prices]
-    closes = [p.close_val for p in prices]
-    volumes = [p.volume for p in prices]
-
-    # Create subplots using go.Figure
-    fig = go.Figure()
-    
-    # Close price trace
-    fig.add_trace(go.Scatter(
-        x=dates, y=closes, mode='lines', name='Close Price',
-        line=dict(color=THEME_COLORS["SECONDARY"], width=3)
-    ))
-
-    # Add bar chart for volume on a secondary y-axis if possible
-    # For simplicity, we can plot them in a single styled chart or layout
-    fig.update_layout(
-        title="Historical Price Trend (Daily Closes)",
-        xaxis_title="Date",
-        yaxis_title="Price ($)",
-        height=320,
-        **DEFAULT_CHART_LAYOUT
-    )
-    st.plotly_chart(fig, use_container_width=True)
-
-
-def trigger_search_pipeline(ticker: str):
-    """
-    Executes search and switches session states.
-    In Phase 4, we use mock services in the controller pipeline.
-    """
-    ticker_clean = ticker.strip().upper()
+    query_clean = query.strip()
     try:
-        # Validate syntax
-        ResponseValidator.validate_ticker_input(ticker_clean)
-        
+        # Validate query format (prevent empty/whitespaces/special issues)
+        if not query_clean:
+            raise InvalidInputError("Please enter a company name or ticker.")
+            
+        if len(query_clean) > 50:
+            raise InvalidInputError("Search query is too long. Please restrict query to 50 characters.")
+            
         # Set loading state
         st.session_state.ui_state = "loading"
-        st.session_state.selected_company = ticker_clean
         st.session_state.error_message = ""
-        
-        logger.info(f"UI state set to LOADING for ticker {ticker_clean}")
+        logger.info(f"UI state set to LOADING for query: '{query_clean}'")
         
     except InvalidInputError as e:
         st.session_state.ui_state = "error"
         st.session_state.error_message = str(e)
-        st.session_state.selected_company = None
-        st.session_state.analysis_results = None
-        logger.warning(f"Validation failed for query '{ticker}': {e}")
+        st.session_state.current_company = None
+        st.session_state.search_status = "error"
+        logger.warning(f"Input validation failed for query '{query}': {e}")
 
 
-def execute_mock_analysis():
+def execute_company_resolution():
     """
-    Orchestrates mock service flows inside the controller pipeline.
-    Runs only while session state is in 'loading'.
+    Queries FinanceService to resolve name/symbol to a CompanyInfo instance.
+    Runs during the 'loading' phase.
     """
-    ticker = st.session_state.selected_company
-    logger.info(f"Running mock analysis pipeline for {ticker}")
+    query = st.session_state.ticker_input
+    logger.info(f"Initiating resolution service lookup for: '{query}'")
     
-    # Instantiate mock layers
-    mock_company = MockCompanySearchService()
-    mock_finance = MockFinancialService()
-    mock_news = MockNewsService()
-    mock_sentiment = MockSentimentService()
-    mock_risk = MockRiskService()
-    mock_ai = MockAISummaryService()
+    finance_service = FinanceService()
     
-    controller = ApplicationController(
-        company_service=mock_company,
-        financial_service=mock_finance,
-        news_service=mock_news,
-        sentiment_service=mock_sentiment,
-        risk_service=mock_risk,
-        ai_service=mock_ai
-    )
-    
-    # Execute analysis (the controller catches sub-errors itself)
-    results = controller.analyze_ticker(ticker, date_window_days=30)
-    
-    # Evaluate output
-    if results.get("profile") is None:
+    try:
+        profiles = finance_service.search_companies(query)
+        
+        if not profiles:
+            st.session_state.ui_state = "error"
+            st.session_state.error_message = f"Company could not be found for search query: '{query}'"
+            st.session_state.current_company = None
+            st.session_state.search_status = "error"
+            logger.warning(f"Resolution failed to locate any public company profile for '{query}'")
+        else:
+            profile = profiles[0]
+            st.session_state.current_company = profile
+            st.session_state.search_status = "success"
+            st.session_state.search_timestamp = datetime.now()
+            st.session_state.ui_state = "success"
+            logger.info(f"Resolution succeeded. Set active company context: {profile.name} ({profile.ticker})")
+            
+    except DataRetrievalError as e:
         st.session_state.ui_state = "error"
-        # Extract the profile error
-        profile_errors = [err for err in results.get("errors", []) if "Profile" in err]
-        st.session_state.error_message = profile_errors[0] if profile_errors else f"Unable to resolve symbol {ticker}."
-        st.session_state.analysis_results = None
-        logger.warning(f"Mock analysis failed for {ticker}")
-    else:
-        st.session_state.analysis_results = results
-        st.session_state.ui_state = "success"
-        logger.info(f"Mock analysis completed with success status for {ticker}")
+        st.session_state.error_message = str(e)
+        st.session_state.current_company = None
+        st.session_state.search_status = "error"
+        logger.error(f"Data retrieval failed during resolution: {e}")
+    except Exception as e:
+        st.session_state.ui_state = "error"
+        st.session_state.error_message = "An unexpected error occurred while contacting financial services. Please try again."
+        st.session_state.current_company = None
+        st.session_state.search_status = "error"
+        logger.error(f"Unexpected error during resolution: {e}")
+
+
+def render_company_overview(profile: CompanyInfo):
+    """
+    Renders corporate profile identity card (metadata, description).
+    """
+    website_link = f'<a href="{profile.website}" target="_blank" style="color: #3B82F6; text-decoration: none;">{profile.website}</a>' if profile.website else "N/A"
+    
+    st.markdown(
+        f"""
+        <div class="glass-card" style="margin-top: 1rem;">
+            <div class="glass-card-title">🏢 Company Profile & Details</div>
+            <h3 style="margin-top: 0px; color: #FFFFFF; font-weight: 700;">{profile.name} ({profile.ticker})</h3>
+            <p style="font-size: 0.95rem; color: #E2E8F0; line-height: 1.6; margin-bottom: 1.5rem;">
+                {profile.summary}
+            </p>
+            <div class="status-grid">
+                <div class="status-item">
+                    <div class="status-label">Sector</div>
+                    <div class="status-value" style="font-size: 1rem;">{profile.sector}</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Industry</div>
+                    <div class="status-value" style="font-size: 1rem;">{profile.industry}</div>
+                </div>
+                <div class="status-item">
+                    <div class="status-label">Corporate Website</div>
+                    <div class="status-value" style="font-size: 1rem; color: #3B82F6;">{website_link}</div>
+                </div>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
 
 def main():
     # Setup Streamlit page configuration
     st.set_page_config(
-        page_title=f"{APP_TITLE} | Dashboard Framework",
+        page_title=f"{APP_TITLE} | Company Search",
         layout="wide",
         initial_sidebar_state="expanded"
     )
@@ -380,7 +190,7 @@ def main():
     # Load custom theme stylesheet
     load_css()
 
-    # Setup state
+    # Setup session variables
     initialize_session_state()
 
     # =====================================================================
@@ -400,35 +210,36 @@ def main():
     
     # Input field and button
     ticker_query = st.sidebar.text_input(
-        "Enter Stock Ticker or Name:", 
+        "Enter Ticker or Company Name:", 
         value=st.session_state.ticker_input,
-        max_chars=10, 
-        placeholder="e.g. AAPL, MSFT, GOOGL"
+        max_chars=50, 
+        placeholder="e.g. AAPL, Microsoft, GOOGL"
     )
     
     col_btn_search, col_btn_clear = st.sidebar.columns([1, 1])
     
     with col_btn_search:
-        if st.button("Analyze", use_container_width=True):
-            if ticker_query:
+        if st.button("Search", use_container_width=True):
+            if ticker_query.strip():
                 st.session_state.ticker_input = ticker_query
                 trigger_search_pipeline(ticker_query)
                 st.rerun()
             else:
-                st.sidebar.warning("Please enter a ticker value.")
+                st.sidebar.warning("Please enter a search query.")
                 
     with col_btn_clear:
         if st.button("Reset", use_container_width=True):
             st.session_state.ticker_input = ""
-            st.session_state.selected_company = None
             st.session_state.ui_state = "empty"
-            st.session_state.analysis_results = None
+            st.session_state.current_company = None
+            st.session_state.search_status = "empty"
+            st.session_state.search_timestamp = None
             st.session_state.error_message = ""
-            logger.info("Session state reset triggered.")
+            logger.info("Dashboard state context reset.")
             st.rerun()
 
-    # Suggestions shortcuts
-    st.sidebar.markdown("#### Suggested Tickers")
+    # Ticker suggestion buttons
+    st.sidebar.markdown("#### Suggested Lookups")
     cols_suggestions = st.sidebar.columns(3)
     suggestions = ["AAPL", "MSFT", "GOOGL"]
     for idx, sug in enumerate(suggestions):
@@ -440,19 +251,21 @@ def main():
 
     st.sidebar.markdown("---")
     
-    # Sidebar status panel
-    st.sidebar.markdown("### 🛠️ Subsystems Status")
+    # Context Diagnostic Panel
+    st.sidebar.markdown("### 💾 Active Context")
+    active_company_name = st.session_state.current_company.name if st.session_state.current_company else "None"
+    active_company_ticker = st.session_state.current_company.ticker if st.session_state.current_company else "None"
     st.sidebar.markdown(
         f"""
         <div class="glass-card" style="padding: 1rem; margin-bottom: 1.5rem;">
-            <div class="status-label">Active State</div>
-            <div class="status-value"><span class="badge badge-info">{st.session_state.ui_state}</span></div>
+            <div class="status-label">Company Name</div>
+            <div class="status-value" style="font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{active_company_name}</div>
             <div style="height: 10px;"></div>
-            <div class="status-label">Environment</div>
-            <div class="status-value">{settings.APP_ENV}</div>
+            <div class="status-label">Symbol Context</div>
+            <div class="status-value">{active_company_ticker}</div>
             <div style="height: 10px;"></div>
-            <div class="status-label">Mock data</div>
-            <div class="status-value">Active Blueprint</div>
+            <div class="status-label">Context Status</div>
+            <div class="status-value"><span class="badge badge-info">{st.session_state.search_status}</span></div>
         </div>
         """,
         unsafe_allow_html=True
@@ -461,116 +274,38 @@ def main():
     # =====================================================================
     # MAIN PANEL REACTIVE RENDERING
     # =====================================================================
-    # 1. Renders fixed banner
+    # 1. Page branding header
     render_header()
 
-    # 2. Handles transitional states
+    # 2. Page routing states
     if st.session_state.ui_state == "loading":
-        # Render loading skeletons and trigger pipeline
-        with st.spinner("Executing analysis pipeline..."):
-            execute_mock_analysis()
+        with st.spinner("Resolving target company and loading profile..."):
+            execute_company_resolution()
             st.rerun()
 
     elif st.session_state.ui_state == "empty":
         render_empty_state()
 
     elif st.session_state.ui_state == "error":
-        # Renders the error component banner
         render_error_banner(
             message=st.session_state.error_message,
-            title="Analysis Failure"
-        )
-        st.markdown(
-            """
-            <div style="text-align: center; margin-top: 2rem;">
-                <p style="color: #64748B;">Please adjust the ticker input in the sidebar panel and try again.</p>
-            </div>
-            """,
-            unsafe_allow_html=True
+            title="Search Resolution Failure"
         )
 
     elif st.session_state.ui_state == "success":
-        # Renders completed dashboard populated with aggregated data models
-        res = st.session_state.analysis_results
-        
-        # Display warnings if there are non-critical errors caught by controller
-        if res.get("errors"):
-            for err in res["errors"]:
-                render_warning_banner(message=err, title="Data Retrieval Notice")
-            st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+        profile = st.session_state.current_company
+        if profile:
+            # Render ONLY the resolved Company Overview card
+            render_company_overview(profile)
             
-        profile: CompanyInfo = res["profile"]
-        metrics: FinancialMetrics = res["metrics"]
-        prices: List[HistoricalPrice] = res["prices"]
-        sentiment: SentimentResult = res["sentiment"]
-        risk: RiskAssessment = res["risk"]
-        ai_summary: AISummary = res["ai_summary"]
-
-        # Grids and Layout
-        # Column A: Company Metadata + Chart + Ratios
-        col_main, col_widgets = st.columns([3, 2])
-        
-        with col_main:
-            # Section 1: Company Profile
-            render_company_profile_card(profile)
-            
-            # Section 2: Historical Pricing Chart
-            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-            draw_historical_chart(prices)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-            # Section 3: Financial Ratio metrics
-            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-            st.markdown('<div class="glass-card-title">🔢 Financial Overview & Ratios</div>', unsafe_allow_html=True)
-            
-            col_metric_1, col_metric_2, col_metric_3 = st.columns(3)
-            with col_metric_1:
-                render_metric_card(
-                    label="Market Capitalization", 
-                    value=format_large_number(metrics.market_cap),
-                    help_text="The total dollar market value of a company's outstanding shares."
-                )
-                render_metric_card(
-                    label="EPS (Trailing 12M)", 
-                    value=f"${metrics.eps:.2f}" if metrics.eps is not None else "N/A",
-                    help_text="Earnings Per Share: net income divided by common shares outstanding."
-                )
-            with col_metric_2:
-                render_metric_card(
-                    label="P/E Valuation Ratio", 
-                    value=f"{metrics.pe_ratio:.2f}x" if metrics.pe_ratio is not None else "N/A",
-                    help_text="Price-to-Earnings: share price divided by earnings per share."
-                )
-                render_metric_card(
-                    label="Return on Equity (ROE)", 
-                    value=format_percent(metrics.roe, is_multiplier=True),
-                    help_text="A measure of financial performance calculated by dividing net income by shareholders' equity."
-                )
-            with col_metric_3:
-                render_metric_card(
-                    label="Debt-to-Equity Ratio", 
-                    value=f"{metrics.debt_to_equity:.1f}%" if metrics.debt_to_equity is not None else "N/A",
-                    help_text="Calculated by dividing a company's total liabilities by its shareholder equity."
-                )
-                render_metric_card(
-                    label="Free Cash Flow", 
-                    value=format_large_number(metrics.free_cash_flow),
-                    help_text="Cash a company generates after cash outflows to support operations and maintain assets."
-                )
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with col_widgets:
-            # Section 4: News Sentiment Badge Card
-            if sentiment:
-                render_sentiment_card(sentiment)
-                
-            # Section 5: Risk Indicator
-            if risk:
-                render_risk_card(risk)
-                
-            # Section 6: AI Generated Summary advisory report
-            if ai_summary:
-                render_ai_advisory_card(ai_summary)
+            st.markdown(
+                """
+                <div style="margin-top: 2rem; text-align: center; color: #64748B; font-size: 0.85rem; font-style: italic;">
+                    💡 Financial ratios, charts, news sentiment and risk indicator panels are disabled during the Search Phase verification.
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
     # =====================================================================
     # FOOTER
@@ -578,7 +313,7 @@ def main():
     st.markdown(
         f"""
         <div class="footer-text">
-            {APP_TITLE} • Responsive Dashboard Architecture Framework • Verified at {datetime.now().strftime('%Y-%m-%d %H:%M')}
+            {APP_TITLE} • Company Search Gateway • Verified at {datetime.now().strftime('%H:%M:%S')}
         </div>
         """,
         unsafe_allow_html=True
