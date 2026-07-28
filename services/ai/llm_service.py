@@ -110,7 +110,15 @@ class LlmService(IAISummaryService):
             logger.info(response.text)
             logger.info("=========================================")
 
-            if response.status_code != 200:
+            if response.status_code == 429:
+                raise ServiceError(
+                    f"AI request limit has been reached. Gemini API Error {response.status_code}\n\n{response.text}"
+                )
+            elif response.status_code in (401, 403):
+                raise ServiceError(
+                    f"AI service configuration error. Gemini API Error {response.status_code}\n\n{response.text}"
+                )
+            elif response.status_code != 200:
                 raise ServiceError(
                     f"Gemini API Error {response.status_code}\n\n{response.text}"
                 )

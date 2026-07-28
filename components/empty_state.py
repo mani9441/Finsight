@@ -3,49 +3,70 @@ Empty State Component for FinSight landing dashboard view.
 """
 
 import streamlit as st
-from core.constants import THEME_COLORS
+
 
 def render_empty_state():
-    """
-    Displays the welcoming instructions on launch when no search has been executed.
-    """
+    # Hero / Header Card
     st.markdown(
-        f"""
-        <div class="glass-card" style="padding: 3rem; text-align: center; margin-top: 1rem;">
-            <h2 style="font-size: 2.2rem; font-weight: 800; margin-bottom: 0.5rem; background: linear-gradient(120deg, #FFFFFF 30%, #93C5FD 90%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-                🔍 Begin Financial Analysis
-            </h2>
-            <p style="color: #94A3B8; font-size: 1.1rem; max-width: 600px; margin: 0 auto 2.5rem auto;">
-                FinSight parses corporate filings, historical stock pricing, recent news sentiment, and risk parameters to generate AI-driven investment briefs.
-            </p>
-            
-            <div class="feature-grid">
-                <div class="feature-box" style="text-align: left;">
-                    <div class="feature-icon">📊</div>
-                    <div class="feature-name">Financial Metrics</div>
-                    <div class="feature-desc">Valuation multipliers, profitability margins, debt-to-equity leverage, and returns.</div>
-                </div>
-                <div class="feature-box" style="text-align: left;">
-                    <div class="feature-icon">📈</div>
-                    <div class="feature-name">Price Visualization</div>
-                    <div class="feature-desc">Interactive historical daily chart showing closing trends and volume activity.</div>
-                </div>
-                <div class="feature-box" style="text-align: left;">
-                    <div class="feature-icon">🗣️</div>
-                    <div class="feature-name">Sentiment Analysis</div>
-                    <div class="feature-desc">Aggregate news coverage scores (positive, neutral, negative bias) to capture market mood.</div>
-                </div>
-                <div class="feature-box" style="text-align: left;">
-                    <div class="feature-icon">🤖</div>
-                    <div class="feature-name">AI Advisory Briefs</div>
-                    <div class="feature-desc">LLM-generated executive summary, investment thesis, and strengths/weaknesses charts.</div>
-                </div>
-            </div>
-            
-            <div style="margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid rgba(255, 255, 255, 0.05); color: #94A3B8; font-size: 0.9rem;">
-                👈 Use the sidebar panel to enter a stock ticker (e.g. <strong>AAPL</strong>, <strong>MSFT</strong>, <strong>GOOGL</strong>) and click Analyze to begin.
-            </div>
+        """<div class="glass-card" style="padding: 3rem 2rem; text-align: center; margin-top: 1rem;">
+    <h2 class="hero-title" style="margin-bottom: 0.75rem;">
+        🔍 Begin Financial Analysis
+    </h2>
+    <div class="empty-description">
+        FinSight parses corporate filings, historical stock pricing, recent news sentiment,
+        and risk parameters to generate AI-driven investment briefs.
+    </div>
+</div>""",
+        unsafe_allow_html=True,
+    )
+
+    # Grid Features Block (Uses your CSS .feature-grid)
+    st.markdown(
+        """<div class="feature-grid">
+    <div class="feature-box">
+        <div class="feature-icon">📊</div>
+        <div class="feature-name">Financial Metrics</div>
+        <div class="feature-desc">
+            Valuation multipliers, profitability margins,
+            debt-to-equity leverage, and returns.
         </div>
-        """,
-        unsafe_allow_html=True
+    </div>
+    <div class="feature-box">
+        <div class="feature-icon">📈</div>
+        <div class="feature-name">Price Visualization</div>
+        <div class="feature-desc">
+            Interactive historical daily chart showing
+            closing trends and volume activity.
+        </div>
+    </div>
+    <div class="feature-box">
+        <div class="feature-icon">🗣️</div>
+        <div class="feature-name">Sentiment Analysis</div>
+        <div class="feature-desc">
+            Aggregate news coverage scores (positive,
+            neutral, negative bias) to capture market mood.
+        </div>
+    </div>
+    <div class="feature-box">
+        <div class="feature-icon">🤖</div>
+        <div class="feature-name">AI Advisory Briefs</div>
+        <div class="feature-desc">
+            LLM-generated executive summary,
+            investment thesis, and strengths/weaknesses.
+        </div>
+    </div>
+</div>""",
+        unsafe_allow_html=True,
+    )
+
+    # Footer Action Prompt
+    st.markdown(
+        """<div class="glass-card" style="margin-top: 1.5rem; text-align: center; padding: 1.25rem;">
+    <span style="color: #94A3B8;">
+        👈 Use the <strong style="color: #F8FAFC;">sidebar panel</strong> to enter a stock ticker
+        (e.g., <strong style="color: #60A5FA;">AAPL</strong>, <strong style="color: #60A5FA;">MSFT</strong>,
+        <strong style="color: #60A5FA;">GOOGL</strong>) and click <strong>Search</strong> to begin.
+    </span>
+</div>""",
+        unsafe_allow_html=True,
     )

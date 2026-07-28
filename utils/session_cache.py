@@ -554,3 +554,43 @@ def clear_summary_cache():
     st.session_state[SUMMARY_LOADING_KEY] = False
     st.session_state[SUMMARY_ERROR_KEY] = None
 
+
+# =====================================================================
+# PHASE 15 DASHBOARD VISIBILITY AND BULK CACHE RESET
+# =====================================================================
+
+DASHBOARD_VISIBLE_KEY = "dashboard_visible"
+
+def initialize_dashboard_visibility_session():
+    """
+    Initializes dashboard visibility state variable.
+    """
+    if DASHBOARD_VISIBLE_KEY not in st.session_state:
+        st.session_state[DASHBOARD_VISIBLE_KEY] = False
+
+
+def get_dashboard_visibility() -> bool:
+    """
+    Checks if the dashboard is currently set to be visible.
+    """
+    return st.session_state.get(DASHBOARD_VISIBLE_KEY, False)
+
+
+def set_dashboard_visibility(visible: bool):
+    """
+    Sets the dashboard visibility state.
+    """
+    st.session_state[DASHBOARD_VISIBLE_KEY] = visible
+
+
+def clear_all_caches():
+    """
+    Clears all company-specific session data caches across all modules.
+    """
+    clear_overview_cache()
+    clear_historical_cache()
+    clear_ratios_cache()
+    clear_news_cache()
+    clear_risk_cache()
+    clear_summary_cache()
+

@@ -115,8 +115,16 @@ from utils.session_cache import (
     set_summary_loading_status,
     get_summary_error,
     set_summary_error,
-    clear_summary_cache
+    clear_summary_cache,
+    
+    # Phase 15 Helpers
+    initialize_dashboard_visibility_session,
+    get_dashboard_visibility,
+    set_dashboard_visibility,
+    clear_all_caches
 )
+from utils.error_handler import log_and_map_exception
+
 
 # Initialize logging
 setup_logging()
@@ -173,6 +181,9 @@ def initialize_session_state():
     # Phase 11 Session Summary Cache tracking
     initialize_summary_session()
 
+    # Phase 15 Session Dashboard Visibility tracking
+    initialize_dashboard_visibility_session()
+
 
 def render_header():
     """
@@ -197,7 +208,7 @@ def trigger_search_pipeline(query: str):
     try:
         # Validate query format (prevent empty/whitespaces/special issues)
         if not query_clean:
-            raise InvalidInputError("Please enter a company name or ticker.")
+            raise InvalidInputError("Please search for a company before continuing.")
             
         if len(query_clean) > 50:
             raise InvalidInputError("Search query is too long. Please restrict query to 50 characters.")
@@ -205,15 +216,7 @@ def trigger_search_pipeline(query: str):
         # Set loading state
         st.session_state.ui_state = "loading"
         st.session_state.error_message = ""
-        
-        # Clear all module session caches
-        clear_overview_cache()
-        clear_historical_cache()
-        clear_ratios_cache()
-        clear_news_cache()
-        clear_risk_cache()
-        clear_summary_cache()
-        set_selected_time_range("1 Year")
+        set_dashboard_visibility(False)
         
         logger.info(f"UI state set to LOADING for query: '{query_clean}'")
         
@@ -222,13 +225,11 @@ def trigger_search_pipeline(query: str):
         st.session_state.error_message = str(e)
         st.session_state.current_company = None
         st.session_state.search_status = "error"
-        clear_overview_cache()
-        clear_historical_cache()
-        clear_ratios_cache()
-        clear_news_cache()
-        clear_risk_cache()
-        clear_summary_cache()
+        set_dashboard_visibility(False)
+        clear_all_caches()
+        set_selected_time_range("1 Year")
         logger.warning(f"Input validation failed for query '{query}': {e}")
+
 
 
 def execute_company_resolution():
@@ -246,48 +247,38 @@ def execute_company_resolution():
         
         if not profiles:
             st.session_state.ui_state = "error"
-            st.session_state.error_message = f"Company could not be found for search query: '{query}'"
+            st.session_state.error_message = "Company not found. Please enter a valid company name or stock ticker."
             st.session_state.current_company = None
             st.session_state.search_status = "error"
-            clear_overview_cache()
-            clear_historical_cache()
-            clear_ratios_cache()
-            clear_news_cache()
-            clear_risk_cache()
-            clear_summary_cache()
+            set_dashboard_visibility(False)
+            clear_all_caches()
             logger.warning(f"Resolution failed to locate any public company profile for '{query}'")
         else:
             profile = profiles[0]
+            current_profile = st.session_state.get("current_company")
+            
+            # Clear cache only when transitioning to a different company ticker
+            if current_profile is None or current_profile.ticker != profile.ticker:
+                clear_all_caches()
+                set_selected_time_range("1 Year")
+                logger.info(f"Cleared previous cache for ticker transition to {profile.ticker}")
+                
             st.session_state.current_company = profile
             st.session_state.search_status = "success"
             st.session_state.search_timestamp = datetime.now()
             st.session_state.ui_state = "success"
+            set_dashboard_visibility(True)
             logger.info(f"Resolution succeeded. Set active company context: {profile.name} ({profile.ticker})")
             
-    except DataRetrievalError as e:
-        st.session_state.ui_state = "error"
-        st.session_state.error_message = str(e)
-        st.session_state.current_company = None
-        st.session_state.search_status = "error"
-        clear_overview_cache()
-        clear_historical_cache()
-        clear_ratios_cache()
-        clear_news_cache()
-        clear_risk_cache()
-        clear_summary_cache()
-        logger.error(f"Data retrieval failed during resolution: {e}")
     except Exception as e:
+        friendly_msg = log_and_map_exception(e, "search")
         st.session_state.ui_state = "error"
-        st.session_state.error_message = "An unexpected error occurred while contacting financial services. Please try again."
+        st.session_state.error_message = friendly_msg
         st.session_state.current_company = None
         st.session_state.search_status = "error"
-        clear_overview_cache()
-        clear_historical_cache()
-        clear_ratios_cache()
-        clear_news_cache()
-        clear_risk_cache()
-        clear_summary_cache()
-        logger.error(f"Unexpected error during resolution: {e}")
+        set_dashboard_visibility(False)
+        clear_all_caches()
+
 
 
 def main():
@@ -346,12 +337,8 @@ def main():
             st.session_state.search_status = "empty"
             st.session_state.search_timestamp = None
             st.session_state.error_message = ""
-            clear_overview_cache()
-            clear_historical_cache()
-            clear_ratios_cache()
-            clear_news_cache()
-            clear_risk_cache()
-            clear_summary_cache()
+            set_dashboard_visibility(False)
+            clear_all_caches()
             set_selected_time_range("1 Year")
             logger.info("Dashboard state context reset.")
             st.rerun()
@@ -429,8 +416,8 @@ def main():
                     set_cached_overview(overview)
                     set_overview_error(None)
                 except Exception as e:
-                    logger.error(f"Overview retrieval failed for ticker '{profile.ticker}': {e}")
-                    set_overview_error("Unable to retrieve company information. Please check your network connection or try again.")
+                    friendly_msg = log_and_map_exception(e, "overview")
+                    set_overview_error(friendly_msg)
                     set_cached_overview(None)
                 finally:
                     set_overview_loading_status(False)
@@ -477,8 +464,8 @@ def main():
                         set_cached_historical_prices(prices)
                         set_historical_error(None)
                     except Exception as e:
-                        logger.error(f"Historical price retrieval failed for ticker '{profile.ticker}': {e}")
-                        set_historical_error("Unable to retrieve historical stock prices.")
+                        friendly_msg = log_and_map_exception(e, "historical")
+                        set_historical_error(friendly_msg)
                         set_cached_historical_prices(None)
                     finally:
                         set_historical_loading_status(False)
@@ -523,8 +510,8 @@ def main():
                         set_cached_ratios(ratios)
                         set_ratios_error(None)
                     except Exception as e:
-                        logger.error(f"Ratios retrieval failed for ticker '{profile.ticker}': {e}")
-                        set_ratios_error("Unable to retrieve financial ratios.")
+                        friendly_msg = log_and_map_exception(e, "ratios")
+                        set_ratios_error(friendly_msg)
                         set_cached_ratios(None)
                     finally:
                         set_ratios_loading_status(False)
@@ -570,8 +557,8 @@ def main():
                         set_cached_sentiment(sentiment)
                         set_news_error(None)
                     except Exception as e:
-                        logger.error(f"News retrieval failed for ticker '{profile.ticker}': {e}")
-                        set_news_error("Unable to retrieve recent news.")
+                        friendly_msg = log_and_map_exception(e, "news")
+                        set_news_error(friendly_msg)
                         set_cached_news(None)
                         set_cached_sentiment(None)
                     finally:
@@ -616,8 +603,8 @@ def main():
                         set_cached_risk(risk_assessment)
                         set_risk_error(None)
                     except Exception as e:
-                        logger.error(f"Risk evaluation failed for ticker '{profile.ticker}': {e}")
-                        set_risk_error(str(e) or "Unable to generate the risk indicator.")
+                        friendly_msg = log_and_map_exception(e, "risk")
+                        set_risk_error(friendly_msg)
                         set_cached_risk(None)
                     finally:
                         set_risk_loading_status(False)
@@ -667,8 +654,8 @@ def main():
                         set_cached_summary(ai_summary)
                         set_summary_error(None)
                     except Exception as e:
-                        logger.error(f"AI summary generation failed for ticker '{profile.ticker}': {e}")
-                        set_summary_error(str(e) or "Unable to generate the AI summary.")
+                        friendly_msg = log_and_map_exception(e, "summary")
+                        set_summary_error(friendly_msg)
                         set_cached_summary(None)
                     finally:
                         set_summary_loading_status(False)

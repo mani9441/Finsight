@@ -79,6 +79,7 @@ class TestAISummaryModule(unittest.TestCase):
     @patch("services.ai.llm_service.settings")
     def test_llm_service_success_api(self, mock_settings, mock_post):
         mock_settings.GEMINI_API_KEY = "valid_api_key"
+        mock_settings.GEMINI_MODEL = "Gemini 2.5 Flash"
         
         # Setup mock response content representing strict JSON matching models with >30 words executive summary
         mock_response = MagicMock()

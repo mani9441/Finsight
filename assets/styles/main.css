@@ -3,7 +3,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 /* Global Font Override and Background Adjustments */
-html, body, [class*="css"], [data-testid="stAppViewContainer"] {
+html,
+body,
+[class*="css"],
+[data-testid="stAppViewContainer"] {
     font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     color: #F1F5F9;
 }
@@ -200,6 +203,16 @@ html, body, [class*="css"], [data-testid="stAppViewContainer"] {
     font-size: 0.85rem;
     color: #94A3B8;
     line-height: 1.4;
+}
+
+.empty-description {
+    color: #94A3B8;
+    font-size: 1.05rem;
+    font-weight: 400;
+    max-width: 650px;
+    margin: 0 auto;
+    line-height: 1.7;
+    letter-spacing: 0.01em;
 }
 
 /* Footer Section */
