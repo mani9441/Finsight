@@ -99,13 +99,13 @@ class IAISummaryService(ABC):
     @abstractmethod
     def generate_advisory_summary(
         self, 
-        company_info: CompanyInfo, 
-        metrics: FinancialMetrics, 
+        company_overview: CompanyOverview, 
+        ratios: FinancialRatios, 
         sentiment: SentimentResult,
         risk: RiskAssessment
     ) -> AISummary:
         """
-        Generates an executive advisory summary integrating metadata, metrics, sentiment, and risk profile.
+        Generates an executive advisory summary integrating overview, ratios, sentiment, and risk profile.
         """
         pass
 

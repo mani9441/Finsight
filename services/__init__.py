@@ -33,6 +33,7 @@ from services.finance.risk_service import RiskEvaluationService
 from services.finance.risk_rules_engine import RiskRulesEngine
 from services.finance.risk_controller import RiskController
 from services.ai import LlmService, PromptBuilder
+from services.ai.summary_controller import SummaryController
 
 __all__ = [
     # Interfaces
@@ -64,6 +65,7 @@ __all__ = [
     "RatioController",
     "NewsController",
     "RiskController",
+    "SummaryController",
     
     # Utilities
     "FinanceMapper",

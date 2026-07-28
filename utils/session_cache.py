@@ -5,7 +5,7 @@ Session Cache helper utilities for managing Streamlit session state for financia
 import streamlit as st
 from datetime import datetime
 from typing import Optional, List
-from models import CompanyOverview, HistoricalPrice, FinancialRatios, NewsArticle, SentimentResult, RiskAssessment
+from models import CompanyOverview, HistoricalPrice, FinancialRatios, NewsArticle, SentimentResult, RiskAssessment, AISummary
 
 OVERVIEW_DATA_KEY = "overview_data"
 OVERVIEW_TIMESTAMP_KEY = "overview_timestamp"
@@ -37,6 +37,12 @@ RISK_DATA_KEY = "risk_assessment"
 RISK_TIMESTAMP_KEY = "risk_timestamp"
 RISK_LOADING_KEY = "risk_loading"
 RISK_ERROR_KEY = "risk_error"
+
+# Phase 11 Cache Keys
+SUMMARY_DATA_KEY = "ai_summary"
+SUMMARY_TIMESTAMP_KEY = "summary_timestamp"
+SUMMARY_LOADING_KEY = "summary_loading"
+SUMMARY_ERROR_KEY = "summary_error"
 
 
 def initialize_overview_session():
@@ -466,4 +472,85 @@ def clear_risk_cache():
     st.session_state[RISK_TIMESTAMP_KEY] = None
     st.session_state[RISK_LOADING_KEY] = False
     st.session_state[RISK_ERROR_KEY] = None
+
+
+# =====================================================================
+# PHASE 11 AI SUMMARY MODULE SESSION MANAGEMENT
+# =====================================================================
+
+def initialize_summary_session():
+    """
+    Initializes required session keys for the AI Summary module.
+    """
+    if SUMMARY_DATA_KEY not in st.session_state:
+        st.session_state[SUMMARY_DATA_KEY] = None
+    if SUMMARY_TIMESTAMP_KEY not in st.session_state:
+        st.session_state[SUMMARY_TIMESTAMP_KEY] = None
+    if SUMMARY_LOADING_KEY not in st.session_state:
+        st.session_state[SUMMARY_LOADING_KEY] = False
+    if SUMMARY_ERROR_KEY not in st.session_state:
+        st.session_state[SUMMARY_ERROR_KEY] = None
+
+
+def get_cached_summary() -> Optional[AISummary]:
+    """
+    Retrieves the cached AISummary model from the session state.
+    """
+    return st.session_state.get(SUMMARY_DATA_KEY)
+
+
+def set_cached_summary(summary: Optional[AISummary]):
+    """
+    Stores the AISummary model and updates retrieval timestamp.
+    """
+    st.session_state[SUMMARY_DATA_KEY] = summary
+    if summary is not None:
+        st.session_state[SUMMARY_TIMESTAMP_KEY] = datetime.now()
+    else:
+        st.session_state[SUMMARY_TIMESTAMP_KEY] = None
+
+
+def get_summary_timestamp() -> Optional[datetime]:
+    """
+    Retrieves the timestamp when the AI summary was generated.
+    """
+    return st.session_state.get(SUMMARY_TIMESTAMP_KEY)
+
+
+def get_summary_loading_status() -> bool:
+    """
+    Checks if the AI summary module is currently generating data.
+    """
+    return st.session_state.get(SUMMARY_LOADING_KEY, False)
+
+
+def set_summary_loading_status(status: bool):
+    """
+    Sets loading status for the AI summary module.
+    """
+    st.session_state[SUMMARY_LOADING_KEY] = status
+
+
+def get_summary_error() -> Optional[str]:
+    """
+    Retrieves errors encountered during AI summary generation.
+    """
+    return st.session_state.get(SUMMARY_ERROR_KEY)
+
+
+def set_summary_error(error: Optional[str]):
+    """
+    Stores error state message for the AI summary module.
+    """
+    st.session_state[SUMMARY_ERROR_KEY] = error
+
+
+def clear_summary_cache():
+    """
+    Clears cached AI summary models, status indicators, and timestamps.
+    """
+    st.session_state[SUMMARY_DATA_KEY] = None
+    st.session_state[SUMMARY_TIMESTAMP_KEY] = None
+    st.session_state[SUMMARY_LOADING_KEY] = False
+    st.session_state[SUMMARY_ERROR_KEY] = None
 

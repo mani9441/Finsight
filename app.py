@@ -7,6 +7,7 @@ Implements:
 - Phase 8 — Financial Ratios Module
 - Phase 9 — News Retrieval & Sentiment Analysis Module
 - Phase 10 — Risk Indicator Module
+- Phase 11 — AI Company Summary Module (Google Gemini 2.5 Flash)
 """
 
 import streamlit as st
@@ -20,7 +21,7 @@ from core.constants import (
     APP_TITLE,
     APP_TAGLINE
 )
-from models import CompanyInfo, CompanyOverview, HistoricalPrice, FinancialRatios, NewsArticle, SentimentResult, RiskAssessment
+from models import CompanyInfo, CompanyOverview, HistoricalPrice, FinancialRatios, NewsArticle, SentimentResult, RiskAssessment, AISummary
 from services import (
     FinanceService, 
     FinancialOverviewService, 
@@ -32,7 +33,9 @@ from services import (
     NewsService,
     NewsController,
     RiskEvaluationService,
-    RiskController
+    RiskController,
+    LlmService,
+    SummaryController
 )
 from services.common.response_validator import ResponseValidator
 from core.exceptions import InvalidInputError, DataRetrievalError
@@ -47,7 +50,8 @@ from components import (
     render_historical_price_chart,
     render_company_ratios_module,
     render_news_sentiment_module,
-    render_company_risk_module
+    render_company_risk_module,
+    render_company_summary_module
 )
 from utils.session_cache import (
     initialize_overview_session,
@@ -101,7 +105,17 @@ from utils.session_cache import (
     set_risk_loading_status,
     get_risk_error,
     set_risk_error,
-    clear_risk_cache
+    clear_risk_cache,
+    
+    # Phase 11 Cache Helpers
+    initialize_summary_session,
+    get_cached_summary,
+    set_cached_summary,
+    get_summary_loading_status,
+    set_summary_loading_status,
+    get_summary_error,
+    set_summary_error,
+    clear_summary_cache
 )
 
 # Initialize logging
@@ -156,6 +170,9 @@ def initialize_session_state():
     # Phase 10 Session Risk Cache tracking
     initialize_risk_session()
 
+    # Phase 11 Session Summary Cache tracking
+    initialize_summary_session()
+
 
 def render_header():
     """
@@ -195,6 +212,7 @@ def trigger_search_pipeline(query: str):
         clear_ratios_cache()
         clear_news_cache()
         clear_risk_cache()
+        clear_summary_cache()
         set_selected_time_range("1 Year")
         
         logger.info(f"UI state set to LOADING for query: '{query_clean}'")
@@ -209,6 +227,7 @@ def trigger_search_pipeline(query: str):
         clear_ratios_cache()
         clear_news_cache()
         clear_risk_cache()
+        clear_summary_cache()
         logger.warning(f"Input validation failed for query '{query}': {e}")
 
 
@@ -235,6 +254,7 @@ def execute_company_resolution():
             clear_ratios_cache()
             clear_news_cache()
             clear_risk_cache()
+            clear_summary_cache()
             logger.warning(f"Resolution failed to locate any public company profile for '{query}'")
         else:
             profile = profiles[0]
@@ -254,6 +274,7 @@ def execute_company_resolution():
         clear_ratios_cache()
         clear_news_cache()
         clear_risk_cache()
+        clear_summary_cache()
         logger.error(f"Data retrieval failed during resolution: {e}")
     except Exception as e:
         st.session_state.ui_state = "error"
@@ -265,6 +286,7 @@ def execute_company_resolution():
         clear_ratios_cache()
         clear_news_cache()
         clear_risk_cache()
+        clear_summary_cache()
         logger.error(f"Unexpected error during resolution: {e}")
 
 
@@ -329,6 +351,7 @@ def main():
             clear_ratios_cache()
             clear_news_cache()
             clear_risk_cache()
+            clear_summary_cache()
             set_selected_time_range("1 Year")
             logger.info("Dashboard state context reset.")
             st.rerun()
@@ -617,16 +640,57 @@ def main():
                     set_risk_loading_status(True)
                     set_risk_error(None)
                     st.rerun()
+
+            # -------------------------------------------------------------
+            # MODULE 6: AI Company Summary Module (Phase 11)
+            # -------------------------------------------------------------
+            # Ensure risk assessment loaded successfully before generating summary
+            if cached_overview and cached_overview.ticker == profile.ticker and cached_risk:
+                st.markdown("---")
                 
-                # Standard placeholder text for remaining modules
-                st.markdown(
-                    """
-                    <div style="margin-top: 2rem; text-align: center; color: #64748B; font-size: 0.85rem; font-style: italic;">
-                        💡 AI company advisory summary panel is disabled during the Risk Indicator Phase verification.
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+                cached_summary = get_cached_summary()
+                summary_err = get_summary_error()
+                
+                if get_summary_loading_status():
+                    render_section_loader("AI Company Summary", height=240)
+                    
+                    try:
+                        summary_service = LlmService()
+                        summary_controller = SummaryController(summary_service)
+                        ai_summary = summary_controller.get_summary(
+                            profile.ticker,
+                            cached_overview,
+                            cached_ratios,
+                            cached_sentiment,
+                            cached_risk
+                        )
+                        set_cached_summary(ai_summary)
+                        set_summary_error(None)
+                    except Exception as e:
+                        logger.error(f"AI summary generation failed for ticker '{profile.ticker}': {e}")
+                        set_summary_error(str(e) or "Unable to generate the AI summary.")
+                        set_cached_summary(None)
+                    finally:
+                        set_summary_loading_status(False)
+                        st.rerun()
+                        
+                elif summary_err:
+                    render_error_banner(
+                        message=summary_err,
+                        title="AI Summary Load Failure"
+                    )
+                    if st.button("🔄 Retry Generating AI Summary", key="retry_summary"):
+                        set_summary_loading_status(True)
+                        set_summary_error(None)
+                        st.rerun()
+                        
+                elif cached_summary:
+                    # Renders overall AI-generated summary and disclaimer
+                    render_company_summary_module(cached_summary)
+                else:
+                    set_summary_loading_status(True)
+                    set_summary_error(None)
+                    st.rerun()
 
     # =====================================================================
     # FOOTER
@@ -634,7 +698,7 @@ def main():
     st.markdown(
         f"""
         <div class="footer-text">
-            {APP_TITLE} • Risk Indicator Module • Verified at {datetime.now().strftime('%H:%M:%S')}
+            {APP_TITLE} • AI Summary Module • Verified at {datetime.now().strftime('%H:%M:%S')}
         </div>
         """,
         unsafe_allow_html=True

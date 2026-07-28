@@ -1,144 +1,272 @@
 """
-LLM Service implementation using the OpenAI SDK.
+LLM Service implementation using Google Gemini 2.5 Flash API (REST).
 Includes mock fallback mode for development without API keys.
 """
 
 import json
+import requests
+import time
 from datetime import datetime
 from typing import Optional
 
 from core import get_logger
-from core.exceptions import ServiceError
-from models import CompanyInfo, FinancialMetrics, SentimentResult, RiskAssessment, AISummary
+from core.exceptions import ServiceError, DataRetrievalError
+from models import CompanyOverview, FinancialRatios, SentimentResult, RiskAssessment, AISummary
 from services.interfaces import IAISummaryService
 from services.ai.prompt_builder import PromptBuilder
 from services.common.response_validator import ResponseValidator
 from config.settings import settings
 
-logger = get_logger("llm_service")
+logger = get_logger("gemini_service")
 
 class LlmService(IAISummaryService):
     """
-    Communicates with OpenAI models to generate advisory reports.
+    Communicates with Google Gemini 2.5 Flash to generate advisory reports.
     Falls back to high-fidelity mock generators if credentials are not configured.
     """
 
     def generate_advisory_summary(
-        self, 
-        company_info: CompanyInfo, 
-        metrics: FinancialMetrics, 
+        self,
+        company_overview: CompanyOverview,
+        ratios: FinancialRatios,
         sentiment: SentimentResult,
         risk: RiskAssessment
     ) -> AISummary:
-        """
-        Generates an AI summary. Detects key presence and routes to API or mock mode.
-        """
-        ticker = company_info.ticker.upper()
-        logger.info(f"Generating advisory report summary for: {ticker}")
-        
-        # Build prompt using PromptBuilder
-        prompt = PromptBuilder.build_advisory_prompt(company_info, metrics, sentiment, risk)
 
-        # Check API key configuration status
-        api_key = settings.OPENAI_API_KEY
+        ticker = company_overview.ticker.upper()
+        logger.info(f"LLM Service: Initiating Gemini summary generation for '{ticker}'")
+
+        prompt = PromptBuilder.build_advisory_prompt(
+            company_overview,
+            ratios,
+            sentiment,
+            risk
+        )
+
+        api_key = settings.GEMINI_API_KEY
+
         is_mock_mode = (
-            not api_key 
-            or api_key == "your_openai_api_key_here" 
+            not api_key
+            or api_key == "your_gemini_api_key_here"
             or "your_" in api_key.lower()
         )
 
         if is_mock_mode:
-            logger.info(f"OpenAI key is missing or set to placeholder. Generating high-fidelity mock report for {ticker}.")
-            return self._generate_mock_report(company_info, metrics, sentiment, risk)
+            logger.info(
+                f"LLM Service: Gemini key missing. Returning mock report for {ticker}."
+            )
+            return self._generate_mock_report(
+                company_overview,
+                ratios,
+                sentiment,
+                risk
+            )
+
+        url = (
+            "https://generativelanguage.googleapis.com/v1beta/models/"
+            f"{settings.GEMINI_MODEL}:generateContent?key={api_key}"
+        )
+
+        headers = {
+            "Content-Type": "application/json"
+        }
+
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": prompt
+                        }
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "responseMimeType": "application/json"
+            }
+        }
+
+        start_time = time.time()
 
         try:
-            # Import OpenAI client locally
-            from openai import OpenAI
-            client = OpenAI(api_key=api_key)
 
-            # Query model (using standard gpt-4o-mini or gpt-3.5-turbo models for efficiency)
-            model_name = "gpt-4o-mini"
-            logger.info(f"Dispatching prompt query to OpenAI API ({model_name})...")
-            
-            response = client.chat.completions.create(
-                model=model_name,
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": "You are a professional financial analyst that outputs strict JSON formats."
-                    },
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.2,
-                response_format={"type": "json_object"}
+            logger.info("Sending request to Gemini...")
+
+            response = requests.post(
+                url,
+                headers=headers,
+                json=payload,
+                timeout=30
             )
-            
-            response_content = response.choices[0].message.content
-            if not response_content:
-                raise ServiceError("LLM response payload content was empty.")
 
-            logger.info(f"OpenAI response received. Parsing JSON payload.")
-            data = json.loads(response_content.strip())
-            
-            # Validate output keys
+            latency = (time.time() - start_time) * 1000
+
+            logger.info(
+                f"Gemini Status={response.status_code} "
+                f"Latency={latency:.2f}ms"
+            )
+
+            logger.info("========== GEMINI RAW RESPONSE ==========")
+            logger.info(response.text)
+            logger.info("=========================================")
+
+            if response.status_code != 200:
+                raise ServiceError(
+                    f"Gemini API Error {response.status_code}\n\n{response.text}"
+                )
+
+            response_data = response.json()
+
+            logger.info("Parsed Gemini response successfully.")
+
+            candidates = response_data.get("candidates")
+
+            if not candidates:
+                raise ServiceError(
+                    f"No candidates returned.\n\n{response.text}"
+                )
+
+            candidate = candidates[0]
+
+            finish_reason = candidate.get("finishReason")
+
+            if finish_reason and finish_reason != "STOP":
+                raise ServiceError(
+                    f"Gemini stopped with reason: {finish_reason}"
+                )
+
+            content = candidate.get("content")
+
+            if not content:
+                raise ServiceError(
+                    f"No content field.\n\n{response.text}"
+                )
+
+            parts = content.get("parts")
+
+            if not parts:
+                raise ServiceError(
+                    f"No parts found.\n\n{response.text}"
+                )
+
+            text_content = parts[0].get("text")
+
+            if not text_content:
+                raise ServiceError(
+                    f"Gemini returned empty text.\n\n{response.text}"
+                )
+
+            logger.info("========== GEMINI GENERATED TEXT ==========")
+            logger.info(text_content)
+            logger.info("===========================================")
+
+            text_content = (
+                text_content
+                .replace("```json", "")
+                .replace("```", "")
+                .strip()
+            )
+
+            try:
+                data = json.loads(text_content)
+
+            except Exception as e:
+                logger.exception("JSON Parsing Failed")
+                logger.error(text_content)
+                raise ServiceError(
+                    f"Gemini returned invalid JSON.\n\n{text_content}"
+                ) from e
+
             ResponseValidator.validate_keys(
-                data, ["executive_summary", "strengths", "weaknesses", "investment_thesis"], "AISummary Output"
+                data,
+                [
+                    "executive_summary",
+                    "investment_thesis",
+                    "strengths",
+                    "weaknesses"
+                ],
+                "Gemini AI Summary"
             )
+
+            summary = data["executive_summary"]
+
+            if not isinstance(summary, str):
+                raise ServiceError(
+                    "Executive summary is not a string."
+                )
+
+            if len(summary.split()) < 30:
+                raise ServiceError(
+                    "Executive summary too short."
+                )
+
+            logger.info("Gemini response validation successful.")
 
             return AISummary(
                 ticker=ticker,
-                executive_summary=data["executive_summary"],
+                executive_summary=summary,
                 investment_thesis=data["investment_thesis"],
                 strengths=data.get("strengths", []),
                 weaknesses=data.get("weaknesses", []),
+                model_name=settings.GEMINI_MODEL,
+                status="Success",
                 generated_at=datetime.now()
             )
 
+        except requests.exceptions.RequestException as e:
+            logger.exception("Network Error")
+            raise ServiceError(
+                f"Unable to connect to Gemini.\n\n{e}"
+            ) from e
+
         except Exception as e:
-            logger.error(f"OpenAI API request failed: {e}. Falling back to mock generator.")
-            # Graceful fallback to mock reporting rather than raising breaking exception to UI
-            return self._generate_mock_report(company_info, metrics, sentiment, risk)
+            logger.exception("Gemini Processing Error")
+            raise ServiceError(str(e)) from e
+
 
     def _generate_mock_report(
         self,
-        company_info: CompanyInfo,
-        metrics: FinancialMetrics,
+        company_overview: CompanyOverview,
+        ratios: FinancialRatios,
         sentiment: SentimentResult,
         risk: RiskAssessment
     ) -> AISummary:
         """
-        Generates realistic, details-rich mockup reports based on the metrics, sentiment, and risk profile.
+        Generates realistic, details-rich mockup reports based on ratios, sentiment, and risk profile.
         """
-        ticker = company_info.ticker.upper()
-        
-        # Determine analytical adjectives based on financial variables
-        health_adjective = "fundamentally robust" if risk.risk_level in ["Low", "Medium"] else "structurally volatile"
-        sentiment_review = "highly encouraging news coverage" if sentiment.average_score > 0.1 else "subdued or cautious market consensus"
+        ticker = company_overview.ticker.upper()
         
         # Build customized content
         exec_summary = (
-            f"An analysis of {company_info.name} ({ticker}) indicates a {health_adjective} market profile. "
-            f"The company demonstrates a business presence within the {company_info.industry} industry, "
-            f"supported by sector dynamics in {company_info.sector}. Recent operations are accompanied by "
-            f"{sentiment_review}, while risk scoring tools compile a composite risk score of {risk.risk_score:.1f}/100, "
-            f"pointing to a {risk.risk_level.lower()} threat level for prospective shareholders."
+            f"An analysis of {company_overview.name} ({ticker}) indicates a profile situated in the "
+            f"{company_overview.industry} industry within the {company_overview.sector} sector. "
+            f"Based on evaluated metrics, the company operates with a computed risk profile rated as "
+            f"{risk.risk_level}. The market shows {sentiment.sentiment_label.lower()} news coverage, "
+            f"while the P/E ratio is {ratios.pe_ratio if ratios.pe_ratio is not None else 'N/A'} and the ROE is "
+            f"{f'{ratios.roe*100:.2f}%' if ratios.roe is not None else 'N/A'}. This summary is for educational "
+            f"purposes only and relies exclusively on FinSight's internal calculations."
         )
 
         thesis = (
-            f"While {ticker} faces industry head-winds related to {risk.risk_factors[0] if risk.risk_factors else 'market cycles'}, "
-            f"its {health_adjective} profile and sector position support long-term holding."
+            f"While {ticker} faces considerations related to {risk.risk_factors[0] if risk.risk_factors else 'market sector fluctuations'}, "
+            f"its overall position makes it an interesting case study for valuation."
         )
 
         strengths = [
-            f"Established leadership in the {company_info.industry} sector.",
-            f"Favorable public profile with average sentiment score of {sentiment.average_score:+.2f}.",
-            f"Solid scale with a market capitalization of {format_large_number_local(metrics.market_cap)}."
+            f"Operations in the established {company_overview.industry} space.",
+            f"Favorable public profile with news sentiment label of {sentiment.sentiment_label}."
         ]
+        
+        if ratios.roe is not None and ratios.roe > 0:
+            strengths.append(f"Positive Return on Equity indicating capital generation capacity.")
 
         weaknesses = [
-            f"Exposed to risks concerning: {risk.risk_factors[0] if risk.risk_factors else 'general macro-economic volatility'}.",
-            f"Sensitive to shifts in the {company_info.sector} sector regulations."
+            f"Classified at {risk.risk_level} based on active factor flags.",
+            f"Exposed to sector regulations and overall macroeconomic shifts."
         ]
+        
+        if ratios.pe_ratio is not None and ratios.pe_ratio > 30:
+            weaknesses.append("High price multiples relative to baseline corporate book earnings.")
 
         return AISummary(
             ticker=ticker,
@@ -146,21 +274,7 @@ class LlmService(IAISummaryService):
             investment_thesis=thesis,
             strengths=strengths,
             weaknesses=weaknesses,
+            model_name="Gemini 2.5 Flash",
+            status="Mocked",
             generated_at=datetime.now()
         )
-
-
-def format_large_number_local(val: Optional[float]) -> str:
-    """
-    Local helper to mock format large numbers if needed without creating imports loop.
-    """
-    if val is None:
-        return "N/A"
-    if val >= 1e12:
-        return f"${val / 1e12:.2f}T"
-    elif val >= 1e9:
-        return f"${val / 1e9:.2f}B"
-    elif val >= 1e6:
-        return f"${val / 1e6:.2f}M"
-    else:
-        return f"${val:,.2f}"

@@ -25,4 +25,6 @@ class AISummary:
     investment_thesis: str
     strengths: List[str] = field(default_factory=list)
     weaknesses: List[str] = field(default_factory=list)
+    model_name: str = "Gemini 2.5 Flash"
+    status: str = "Success"
     generated_at: datetime = field(default_factory=datetime.now)

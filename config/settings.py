@@ -49,6 +49,8 @@ class Settings:
 
         # API settings
         self.OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+        self.GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+        self.GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 
     @property
     def is_development(self) -> bool:
