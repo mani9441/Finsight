@@ -10,6 +10,8 @@ from models import (
     SentimentResult,
     RiskAssessment,
     AISummary,
+    CompanyOverview,
+    FinancialRatios,
 )
 
 class ICompanySearchService(ABC):
@@ -104,5 +106,41 @@ class IAISummaryService(ABC):
     ) -> AISummary:
         """
         Generates an executive advisory summary integrating metadata, metrics, sentiment, and risk profile.
+        """
+        pass
+
+
+class IFinancialOverviewService(ABC):
+    """
+    Interface for retrieving company financial overview information.
+    """
+    @abstractmethod
+    def get_company_overview(self, ticker: str) -> CompanyOverview:
+        """
+        Retrieves company overview details for a specific ticker.
+        """
+        pass
+
+
+class IHistoricalPriceService(ABC):
+    """
+    Interface for retrieving historical stock price records by time range.
+    """
+    @abstractmethod
+    def get_historical_prices_by_range(self, ticker: str, time_range: str) -> List[HistoricalPrice]:
+        """
+        Retrieves historical stock price details for a specific ticker and time range.
+        """
+        pass
+
+
+class IFinancialRatioService(ABC):
+    """
+    Interface for retrieving company financial ratios.
+    """
+    @abstractmethod
+    def get_financial_ratios(self, ticker: str) -> FinancialRatios:
+        """
+        Retrieves key financial ratios (valuation, profitability, EPS, dividends) for a specific ticker.
         """
         pass

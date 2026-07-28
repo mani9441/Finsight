@@ -65,3 +65,18 @@ class ResponseValidator:
             raise InvalidInputError(
                 f"Invalid ticker format: '{ticker}'. Ticker must be alphanumeric and between 1-10 characters."
             )
+
+    @staticmethod
+    def validate_overview_response(raw_info: Any, ticker: str):
+        """
+        Validates the raw yfinance info dictionary for company overview.
+        Raises DataRetrievalError if response is invalid or lacks necessary keys.
+        """
+        if not raw_info or not isinstance(raw_info, dict):
+            raise DataRetrievalError(f"No company information found for ticker '{ticker}'")
+        
+        if len(raw_info) <= 5:
+            raise DataRetrievalError(f"Company information payload is incomplete or invalid for ticker '{ticker}'")
+
+        if "symbol" not in raw_info and "ticker" not in raw_info:
+            raise DataRetrievalError(f"Company overview payload for '{ticker}' lacks identifying ticker symbol.")

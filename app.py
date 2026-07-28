@@ -1,8 +1,10 @@
 """
 FinSight Entry Point.
-Implements Phase 5 — Company Search Module.
-Accepts user input, validates it, resolves symbol or company name using Yahoo Finance,
-and establishes the active company context. Renders only the Company Overview section.
+Implements:
+- Phase 5 — Company Search Module
+- Phase 6 — Financial Overview Module
+- Phase 7 — Historical Stock Price Visualization Module
+- Phase 8 — Financial Ratios Module
 """
 
 import streamlit as st
@@ -16,14 +18,61 @@ from core.constants import (
     APP_TITLE,
     APP_TAGLINE
 )
-from models import CompanyInfo
-from services import FinanceService
+from models import CompanyInfo, CompanyOverview, HistoricalPrice, FinancialRatios
+from services import (
+    FinanceService, 
+    FinancialOverviewService, 
+    OverviewController,
+    HistoricalPriceService,
+    HistoricalPriceController,
+    FinancialRatioService,
+    RatioController
+)
 from services.common.response_validator import ResponseValidator
 from core.exceptions import InvalidInputError, DataRetrievalError
 
 # UI components
-from components.empty_state import render_empty_state
-from components.errors import render_error_banner
+from components import (
+    render_empty_state,
+    render_error_banner,
+    render_section_loader,
+    render_company_overview_module,
+    render_time_range_selector,
+    render_historical_price_chart,
+    render_company_ratios_module
+)
+from utils.session_cache import (
+    initialize_overview_session,
+    get_cached_overview,
+    set_cached_overview,
+    get_overview_loading_status,
+    set_overview_loading_status,
+    get_overview_error,
+    set_overview_error,
+    clear_overview_cache,
+    
+    # Phase 7 Cache Helpers
+    initialize_historical_session,
+    get_cached_historical_prices,
+    set_cached_historical_prices,
+    get_selected_time_range,
+    set_selected_time_range,
+    get_historical_loading_status,
+    set_historical_loading_status,
+    get_historical_error,
+    set_historical_error,
+    clear_historical_cache,
+    
+    # Phase 8 Cache Helpers
+    initialize_ratios_session,
+    get_cached_ratios,
+    set_cached_ratios,
+    get_ratios_loading_status,
+    set_ratios_loading_status,
+    get_ratios_error,
+    set_ratios_error,
+    clear_ratios_cache
+)
 
 # Initialize logging
 setup_logging()
@@ -62,6 +111,15 @@ def initialize_session_state():
     if "search_timestamp" not in st.session_state:
         st.session_state.search_timestamp = None
 
+    # Phase 6 Session Overview Cache tracking
+    initialize_overview_session()
+    
+    # Phase 7 Session Historical Cache tracking
+    initialize_historical_session()
+
+    # Phase 8 Session Ratios Cache tracking
+    initialize_ratios_session()
+
 
 def render_header():
     """
@@ -71,7 +129,7 @@ def render_header():
         f"""
         <div class="hero-section">
             <h1 class="hero-title">{APP_TITLE}</h1>
-            <p class="hero-subtitle">{APP_TAGLINE} | Company Search Active</p>
+            <p class="hero-subtitle">{APP_TAGLINE} | Financial Analytics Dashboard</p>
         </div>
         """,
         unsafe_allow_html=True
@@ -94,6 +152,13 @@ def trigger_search_pipeline(query: str):
         # Set loading state
         st.session_state.ui_state = "loading"
         st.session_state.error_message = ""
+        
+        # Clear all module session caches
+        clear_overview_cache()
+        clear_historical_cache()
+        clear_ratios_cache()
+        set_selected_time_range("1 Year")
+        
         logger.info(f"UI state set to LOADING for query: '{query_clean}'")
         
     except InvalidInputError as e:
@@ -101,6 +166,9 @@ def trigger_search_pipeline(query: str):
         st.session_state.error_message = str(e)
         st.session_state.current_company = None
         st.session_state.search_status = "error"
+        clear_overview_cache()
+        clear_historical_cache()
+        clear_ratios_cache()
         logger.warning(f"Input validation failed for query '{query}': {e}")
 
 
@@ -122,6 +190,9 @@ def execute_company_resolution():
             st.session_state.error_message = f"Company could not be found for search query: '{query}'"
             st.session_state.current_company = None
             st.session_state.search_status = "error"
+            clear_overview_cache()
+            clear_historical_cache()
+            clear_ratios_cache()
             logger.warning(f"Resolution failed to locate any public company profile for '{query}'")
         else:
             profile = profiles[0]
@@ -136,53 +207,25 @@ def execute_company_resolution():
         st.session_state.error_message = str(e)
         st.session_state.current_company = None
         st.session_state.search_status = "error"
+        clear_overview_cache()
+        clear_historical_cache()
+        clear_ratios_cache()
         logger.error(f"Data retrieval failed during resolution: {e}")
     except Exception as e:
         st.session_state.ui_state = "error"
         st.session_state.error_message = "An unexpected error occurred while contacting financial services. Please try again."
         st.session_state.current_company = None
         st.session_state.search_status = "error"
+        clear_overview_cache()
+        clear_historical_cache()
+        clear_ratios_cache()
         logger.error(f"Unexpected error during resolution: {e}")
-
-
-def render_company_overview(profile: CompanyInfo):
-    """
-    Renders corporate profile identity card (metadata, description).
-    """
-    website_link = f'<a href="{profile.website}" target="_blank" style="color: #3B82F6; text-decoration: none;">{profile.website}</a>' if profile.website else "N/A"
-    
-    st.markdown(
-        f"""
-        <div class="glass-card" style="margin-top: 1rem;">
-            <div class="glass-card-title">🏢 Company Profile & Details</div>
-            <h3 style="margin-top: 0px; color: #FFFFFF; font-weight: 700;">{profile.name} ({profile.ticker})</h3>
-            <p style="font-size: 0.95rem; color: #E2E8F0; line-height: 1.6; margin-bottom: 1.5rem;">
-                {profile.summary}
-            </p>
-            <div class="status-grid">
-                <div class="status-item">
-                    <div class="status-label">Sector</div>
-                    <div class="status-value" style="font-size: 1rem;">{profile.sector}</div>
-                </div>
-                <div class="status-item">
-                    <div class="status-label">Industry</div>
-                    <div class="status-value" style="font-size: 1rem;">{profile.industry}</div>
-                </div>
-                <div class="status-item">
-                    <div class="status-label">Corporate Website</div>
-                    <div class="status-value" style="font-size: 1rem; color: #3B82F6;">{website_link}</div>
-                </div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
 
 
 def main():
     # Setup Streamlit page configuration
     st.set_page_config(
-        page_title=f"{APP_TITLE} | Company Search",
+        page_title=f"{APP_TITLE} | Financial Analysis Dashboard",
         layout="wide",
         initial_sidebar_state="expanded"
     )
@@ -235,6 +278,10 @@ def main():
             st.session_state.search_status = "empty"
             st.session_state.search_timestamp = None
             st.session_state.error_message = ""
+            clear_overview_cache()
+            clear_historical_cache()
+            clear_ratios_cache()
+            set_selected_time_range("1 Year")
             logger.info("Dashboard state context reset.")
             st.rerun()
 
@@ -295,17 +342,150 @@ def main():
     elif st.session_state.ui_state == "success":
         profile = st.session_state.current_company
         if profile:
-            # Render ONLY the resolved Company Overview card
-            render_company_overview(profile)
+            # -------------------------------------------------------------
+            # MODULE 1: Financial Overview Module (Phase 6)
+            # -------------------------------------------------------------
+            cached_overview = get_cached_overview()
+            overview_err = get_overview_error()
             
-            st.markdown(
-                """
-                <div style="margin-top: 2rem; text-align: center; color: #64748B; font-size: 0.85rem; font-style: italic;">
-                    💡 Financial ratios, charts, news sentiment and risk indicator panels are disabled during the Search Phase verification.
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+            if get_overview_loading_status():
+                render_section_loader("Financial Overview", height=220)
+                
+                try:
+                    overview_service = FinancialOverviewService()
+                    overview_controller = OverviewController(overview_service)
+                    overview = overview_controller.get_overview(profile.ticker)
+                    set_cached_overview(overview)
+                    set_overview_error(None)
+                except Exception as e:
+                    logger.error(f"Overview retrieval failed for ticker '{profile.ticker}': {e}")
+                    set_overview_error("Unable to retrieve company information. Please check your network connection or try again.")
+                    set_cached_overview(None)
+                finally:
+                    set_overview_loading_status(False)
+                    st.rerun()
+                    
+            elif overview_err:
+                render_error_banner(
+                    message=overview_err,
+                    title="Overview Load Failure"
+                )
+                if st.button("🔄 Retry Loading Overview"):
+                    set_overview_loading_status(True)
+                    set_overview_error(None)
+                    st.rerun()
+                    
+            elif cached_overview and cached_overview.ticker == profile.ticker:
+                render_company_overview_module(cached_overview)
+            else:
+                set_overview_loading_status(True)
+                set_overview_error(None)
+                st.rerun()
+
+            # -------------------------------------------------------------
+            # MODULE 2: Historical Price Visualization Module (Phase 7)
+            # -------------------------------------------------------------
+            # Ensure overview loaded successfully before displaying prices chart
+            if cached_overview and cached_overview.ticker == profile.ticker:
+                st.markdown("---")
+                
+                # Visual time range buttons bar
+                render_time_range_selector()
+                
+                cached_prices = get_cached_historical_prices()
+                hist_err = get_historical_error()
+                active_range = get_selected_time_range()
+                
+                if get_historical_loading_status():
+                    render_section_loader("Historical Price Chart", height=380)
+                    
+                    try:
+                        hist_service = HistoricalPriceService()
+                        hist_controller = HistoricalPriceController(hist_service)
+                        prices = hist_controller.get_historical_prices(profile.ticker, active_range)
+                        set_cached_historical_prices(prices)
+                        set_historical_error(None)
+                    except Exception as e:
+                        logger.error(f"Historical price retrieval failed for ticker '{profile.ticker}': {e}")
+                        set_historical_error("Unable to retrieve historical stock prices.")
+                        set_cached_historical_prices(None)
+                    finally:
+                        set_historical_loading_status(False)
+                        st.rerun()
+                        
+                elif hist_err:
+                    render_error_banner(
+                        message=hist_err,
+                        title="Historical Prices Load Failure"
+                    )
+                    if st.button("🔄 Retry Loading Historical Prices", key="retry_prices"):
+                        set_historical_loading_status(True)
+                        set_historical_error(None)
+                        st.rerun()
+                        
+                elif cached_prices:
+                    # Renders custom Plotly line/area trend visualizer
+                    currency = cached_overview.currency if cached_overview.currency != "Not Available" else "USD"
+                    render_historical_price_chart(cached_prices, profile.ticker, currency)
+                else:
+                    set_historical_loading_status(True)
+                    set_historical_error(None)
+                    st.rerun()
+
+            # -------------------------------------------------------------
+            # MODULE 3: Financial Ratios Module (Phase 8)
+            # -------------------------------------------------------------
+            # Ensure overview and prices loaded successfully before displaying ratios
+            if cached_overview and cached_overview.ticker == profile.ticker and cached_prices:
+                st.markdown("---")
+                
+                cached_ratios = get_cached_ratios()
+                ratios_err = get_ratios_error()
+                
+                if get_ratios_loading_status():
+                    render_section_loader("Financial Ratios", height=240)
+                    
+                    try:
+                        ratio_service = FinancialRatioService()
+                        ratio_controller = RatioController(ratio_service)
+                        ratios = ratio_controller.get_ratios(profile.ticker)
+                        set_cached_ratios(ratios)
+                        set_ratios_error(None)
+                    except Exception as e:
+                        logger.error(f"Ratios retrieval failed for ticker '{profile.ticker}': {e}")
+                        set_ratios_error("Unable to retrieve financial ratios.")
+                        set_cached_ratios(None)
+                    finally:
+                        set_ratios_loading_status(False)
+                        st.rerun()
+                        
+                elif ratios_err:
+                    render_error_banner(
+                        message=ratios_err,
+                        title="Financial Ratios Load Failure"
+                    )
+                    if st.button("🔄 Retry Loading Financial Ratios", key="retry_ratios"):
+                        set_ratios_loading_status(True)
+                        set_ratios_error(None)
+                        st.rerun()
+                        
+                elif cached_ratios:
+                    # Renders card metrics list with educational descriptions
+                    render_company_ratios_module(cached_ratios)
+                else:
+                    set_ratios_loading_status(True)
+                    set_ratios_error(None)
+                    st.rerun()
+                
+                # Standard placeholder text for remaining modules
+                st.markdown(
+                    """
+                    <div style="margin-top: 2rem; text-align: center; color: #64748B; font-size: 0.85rem; font-style: italic;">
+                        💡 News sentiment, risk advisor and AI company summary panels are disabled during the Financial Ratios Phase verification.
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
     # =====================================================================
     # FOOTER
@@ -313,7 +493,7 @@ def main():
     st.markdown(
         f"""
         <div class="footer-text">
-            {APP_TITLE} • Company Search Gateway • Verified at {datetime.now().strftime('%H:%M:%S')}
+            {APP_TITLE} • Financial Ratios Module • Verified at {datetime.now().strftime('%H:%M:%S')}
         </div>
         """,
         unsafe_allow_html=True
