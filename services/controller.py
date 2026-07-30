@@ -16,6 +16,8 @@ from models import (
     SentimentResult,
     RiskAssessment,
     AISummary,
+    CompanyOverview,
+    FinancialRatios,
 )
 from services.interfaces import (
     ICompanySearchService,
@@ -116,7 +118,7 @@ class ApplicationController:
         if results["profile"]:
             try:
                 # Ensure we have fallback dummy models if metrics/sentiment failed
-                metrics_data = results["metrics"] or FinancialMetrics(ticker=ticker, currency="USD")
+                metrics_data = results["metrics"] or FinancialMetrics(ticker=ticker, currency="£")
                 sentiment_data = results["sentiment"] or SentimentResult(
                     ticker=ticker, average_score=0.0, sentiment_label="Neutral",
                     article_count=0, positive_count=0, negative_count=0, neutral_count=0
@@ -130,7 +132,7 @@ class ApplicationController:
         if results["profile"]:
             try:
                 # Compile parameters with fallbacks
-                metrics_data = results["metrics"] or FinancialMetrics(ticker=ticker, currency="USD")
+                metrics_data = results["metrics"] or FinancialMetrics(ticker=ticker, currency="£")
                 sentiment_data = results["sentiment"] or SentimentResult(
                     ticker=ticker, average_score=0.0, sentiment_label="Neutral",
                     article_count=0, positive_count=0, negative_count=0, neutral_count=0
@@ -139,9 +141,34 @@ class ApplicationController:
                     ticker=ticker, risk_score=0.0, risk_level="Unknown", risk_factors=["Risk analysis unavailable"]
                 )
                 
+                profile = results["profile"]
+                overview_data = CompanyOverview(
+                    name=profile.name,
+                    ticker=profile.ticker,
+                    exchange="Unknown",
+                    currency=metrics_data.currency,
+                    sector=profile.sector,
+                    industry=profile.industry,
+                    country="Unknown",
+                    website=profile.website,
+                    business_summary=profile.summary,
+                    market_capitalization=metrics_data.market_cap
+                )
+                
+                ratios_data = FinancialRatios(
+                    ticker=ticker,
+                    currency=metrics_data.currency,
+                    pe_ratio=metrics_data.pe_ratio,
+                    pb_ratio=metrics_data.pb_ratio,
+                    roe=metrics_data.roe,
+                    profit_margin=metrics_data.profit_margin,
+                    dividend_yield=None,
+                    eps=metrics_data.eps
+                )
+                
                 results["ai_summary"] = self.ai_service.generate_advisory_summary(
-                    company_info=results["profile"],
-                    metrics=metrics_data,
+                    company_overview=overview_data,
+                    ratios=ratios_data,
                     sentiment=sentiment_data,
                     risk=risk_data
                 )

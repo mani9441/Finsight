@@ -19,7 +19,7 @@ class FinancialRatioMapper:
         """
         ticker_upper = ticker.strip().upper()
         
-        currency = raw_info.get("financialCurrency") or raw_info.get("currency") or "USD"
+        currency = "£"
         
         # Parse P/E ratio (prefer trailing, fallback to forward)
         pe_val = raw_info.get("trailingPE") or raw_info.get("forwardPE")

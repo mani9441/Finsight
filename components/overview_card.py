@@ -1,5 +1,5 @@
 """
-UI widgets and page sections for rendering the Financial Overview Module.
+UI widgets and page sections for rendering the Financial Overview Module (Rich White Theme).
 """
 
 import streamlit as st
@@ -11,13 +11,12 @@ logger = get_logger("overview_card")
 
 def render_company_overview_module(overview: CompanyOverview):
     """
-    Renders the Financial Overview module layout inside the dashboard.
-    Uses glassmorphic styling and organizes information into logical cards.
+    Renders the Financial Overview module layout inside the dashboard with a Rich White theme.
     """
     logger.debug(f"Rendering Financial Overview for: {overview.ticker}")
 
     # Section Title
-    st.markdown("### 🏢 Financial Overview")
+    st.markdown("### Financial Overview")
 
     # 1. Company Identity Card (Row 1)
     st.markdown(
@@ -27,15 +26,15 @@ def render_company_overview_module(overview: CompanyOverview):
             <div style="display: flex; flex-wrap: wrap; gap: 2rem; align-items: baseline;">
                 <div>
                     <span class="status-label">Company Name</span>
-                    <div style="font-size: 1.6rem; font-weight: 800; color: #FFFFFF; line-height: 1.2;">{overview.name}</div>
+                    <div style="font-size: 1.6rem; font-weight: 800; color: #0F172A; line-height: 1.2;">{overview.name}</div>
                 </div>
                 <div>
                     <span class="status-label">Stock Ticker</span>
-                    <div style="font-size: 1.3rem; font-weight: 700; color: #3B82F6;">{overview.ticker}</div>
+                    <div style="font-size: 1.3rem; font-weight: 700; color: #2563EB;">{overview.ticker}</div>
                 </div>
                 <div>
                     <span class="status-label">Exchange</span>
-                    <div style="font-size: 1.3rem; font-weight: 600; color: #94A3B8;">{overview.exchange}</div>
+                    <div style="font-size: 1.1rem; font-weight: 600; color: #64748B;">{overview.exchange}</div>
                 </div>
             </div>
         </div>
@@ -43,12 +42,10 @@ def render_company_overview_module(overview: CompanyOverview):
         unsafe_allow_html=True
     )
 
-    # 2. Key Business Metrics & Classifications Grid (Row 2 & Row 3 & Row 4)
-    # Let's organize these into structured columns
+    # 2. Key Business Metrics & Classifications Grid (Row 2)
     col1, col2 = st.columns(2)
 
     with col1:
-        # Business Classification Card
         st.markdown(
             f"""
             <div class="glass-card" style="height: 100%;">
@@ -56,11 +53,11 @@ def render_company_overview_module(overview: CompanyOverview):
                 <div class="status-grid" style="grid-template-columns: repeat(2, 1fr);">
                     <div class="status-item">
                         <div class="status-label">Sector</div>
-                        <div class="status-value" style="font-size: 1.05rem;">{overview.sector}</div>
+                        <div class="status-value" style="font-size: 1.05rem; color: #0F172A;">{overview.sector}</div>
                     </div>
                     <div class="status-item">
                         <div class="status-label">Industry</div>
-                        <div class="status-value" style="font-size: 1.05rem;">{overview.industry}</div>
+                        <div class="status-value" style="font-size: 1.05rem; color: #0F172A;">{overview.industry}</div>
                     </div>
                 </div>
             </div>
@@ -69,8 +66,6 @@ def render_company_overview_module(overview: CompanyOverview):
         )
 
     with col2:
-        # Market, Geographic, and Website details
-        # Format Market Cap
         market_cap_raw = overview.market_capitalization
         market_cap_str = format_large_number(market_cap_raw)
         if market_cap_str != "N/A" and overview.currency and overview.currency != "Not Available":
@@ -78,27 +73,26 @@ def render_company_overview_module(overview: CompanyOverview):
         elif market_cap_str == "N/A":
             market_cap_str = "Not Available"
 
-        # Website formatting
-        if overview.website:
-            website_html = f'<a href="{overview.website}" target="_blank" style="color: #3B82F6; text-decoration: none; font-weight: 600;">{overview.website}</a>'
-        else:
-            website_html = '<span style="color: #64748B;">Not Available</span>'
+        website_html = (
+            f'<a href="{overview.website}" target="_blank" style="color: #2563EB; text-decoration: none; font-weight: 600;">{overview.website}</a>'
+            if overview.website else '<span style="color: #94A3B8;">Not Available</span>'
+        )
 
         st.markdown(
             f"""
             <div class="glass-card" style="height: 100%;">
-                <div class="glass-card-title">📊 Market & Identity</div>
+                <div class="glass-card-title"> Market & Identity</div>
                 <div class="status-grid" style="grid-template-columns: repeat(2, 1fr); margin-bottom: 0.75rem;">
                     <div class="status-item">
                         <div class="status-label">Market Cap</div>
-                        <div class="status-value" style="color: #10B981; font-size: 1.15rem;">{market_cap_str}</div>
+                        <div class="status-value" style="color: #059669; font-size: 1.15rem;">{market_cap_str}</div>
                     </div>
                     <div class="status-item">
                         <div class="status-label">Country / Currency</div>
-                        <div class="status-value" style="font-size: 1.05rem;">{overview.country} ({overview.currency})</div>
+                        <div class="status-value" style="font-size: 1.05rem; color: #0F172A;">{overview.country} ({overview.currency})</div>
                     </div>
                 </div>
-                <div style="padding-top: 0.5rem; text-align: left;">
+                <div style="padding-top: 0.25rem;">
                     <span class="status-label" style="display: block; margin-bottom: 0.25rem;">Website</span>
                     <div style="font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         {website_html}
@@ -110,14 +104,12 @@ def render_company_overview_module(overview: CompanyOverview):
         )
 
     # 3. Business Summary Panel
-    # Multi-line text support: we can use standard HTML or streamlit text, but to keep the glass-card style we write it in HTML
-    # escaping newlines is important.
     summary_clean = overview.business_summary.replace("\n", "<br>")
     st.markdown(
         f"""
         <div class="glass-card">
-            <div class="glass-card-title">📖 Business Summary</div>
-            <p style="font-size: 0.95rem; color: #E2E8F0; line-height: 1.6; text-align: justify; margin: 0;">
+            <div class="glass-card-title"> Business Summary</div>
+            <p style="font-size: 0.95rem; color: #334155; line-height: 1.6; text-align: justify; margin: 0;">
                 {summary_clean}
             </p>
         </div>

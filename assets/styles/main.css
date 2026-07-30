@@ -1,242 +1,159 @@
-/* Custom Stylesheet for FinSight Dashboard - Premium Dark & Glassmorphism Theme */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap');
-
-/* Global Font Override and Background Adjustments */
+/* Global Canvas Reset */
 html,
 body,
 [class*="css"],
 [data-testid="stAppViewContainer"] {
-    font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    color: #F1F5F9;
+    font-family: 'Outfit', 'Inter', -apple-system, sans-serif;
+    color: #0F172A !important;
 }
 
-/* Background gradient for the main workspace */
+/* Base Canvas Background - Rich Off-White */
 [data-testid="stAppViewContainer"] {
-    background: radial-gradient(circle at 10% 20%, rgb(15, 23, 42) 0%, rgb(9, 13, 26) 90.1%);
+    background-color: #F8FAFC !important;
 }
 
-/* Glassmorphism Sidebar */
+/* Custom Navigation Sidebar */
 [data-testid="stSidebar"] {
-    background-color: rgba(15, 23, 42, 0.7) !important;
-    backdrop-filter: blur(12px);
-    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    background-color: #FFFFFF !important;
+    border-right: 1px solid #E2E8F0 !important;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.03);
 }
 
-/* Hide default streamlit decoration bar */
 [data-testid="stHeader"] {
     background: transparent;
 }
 
-/* Custom UI Elements */
-
-/* Hero Banner */
+/* Top Hero Section */
 .hero-section {
-    background: linear-gradient(135deg, rgba(30, 58, 138, 0.6) 0%, rgba(59, 130, 246, 0.2) 100%);
-    border: 1px solid rgba(59, 130, 246, 0.3);
-    padding: 2.5rem;
+    background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+    border: 1px solid #BFDBFE;
+    padding: 2rem;
     border-radius: 16px;
-    margin-bottom: 2rem;
-    backdrop-filter: blur(8px);
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
-    position: relative;
-    overflow: hidden;
-}
-
-.hero-section::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 60%);
-    pointer-events: none;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 20px -5px rgba(37, 99, 235, 0.1);
 }
 
 .hero-title {
-    font-size: 2.5rem;
+    font-size: 2.2rem;
     font-weight: 800;
-    margin: 0 0 0.5rem 0;
-    background: linear-gradient(120deg, #FFFFFF 30%, #93C5FD 90%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    letter-spacing: -0.025em;
+    margin: 0 0 0.25rem 0;
+    color: #1E3A8A !important;
+    letter-spacing: -0.02em;
 }
 
 .hero-subtitle {
-    font-size: 1.1rem;
-    color: #94A3B8;
+    font-size: 1rem;
+    color: #3B82F6;
     margin: 0;
-    font-weight: 400;
+    font-weight: 500;
 }
 
-/* Glassmorphic Container Card */
+/* Clean Rich White Cards */
 .glass-card {
-    background: rgba(30, 41, 59, 0.45);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.06);
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
     border-radius: 12px;
     padding: 1.5rem;
     margin-bottom: 1.25rem;
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-    transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .glass-card:hover {
     transform: translateY(-2px);
-    border-color: rgba(59, 130, 246, 0.3);
-    box-shadow: 0 12px 40px 0 rgba(59, 130, 246, 0.15);
+    box-shadow: 0 8px 20px rgba(37, 99, 235, 0.08);
+    border-color: #CBD5E1 !important;
 }
 
 .glass-card-title {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: #F8FAFC;
-    margin-bottom: 1rem;
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #0F172A;
+    margin-bottom: 0.85rem;
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
-/* Status Grid & Badges */
+/* Status Cards Grid */
 .status-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 1rem;
-    margin-top: 1rem;
 }
 
 .status-item {
-    background: rgba(15, 23, 42, 0.4);
-    border: 1px solid rgba(255, 255, 255, 0.03);
+    background: #F8FAFC;
+    border: 1px solid #F1F5F9;
     border-radius: 8px;
     padding: 1rem;
-    text-align: center;
 }
 
 .status-label {
     font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    color: #94A3B8;
-    margin-bottom: 0.5rem;
+    color: #64748B;
+    margin-bottom: 0.25rem;
+    font-weight: 600;
 }
 
 .status-value {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #F1F5F9;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #0F172A;
 }
 
+/* 3-Color Badges */
 .badge {
     display: inline-block;
     padding: 0.25rem 0.6rem;
     border-radius: 9999px;
     font-size: 0.75rem;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.025em;
 }
 
+/* Color 2 Accent: Emerald */
 .badge-success {
-    background-color: rgba(16, 185, 129, 0.15);
-    color: #34D399;
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
+    background-color: #D1FAE5;
+    color: #065F46;
+    border: 1px solid #A7F3D0;
 }
 
+/* Color 3 Accent: Amber / Coral */
 .badge-warning {
-    background-color: rgba(245, 158, 11, 0.15);
-    color: #FBBF24;
-    border: 1px solid rgba(245, 158, 11, 0.3);
+    background-color: #FEF3C7;
+    color: #92400E;
+    border: 1px solid #FDE68A;
 }
 
+.badge-danger {
+    background-color: #FFE4E6;
+    color: #9F1239;
+    border: 1px solid #FECDD3;
+}
+
+/* Color 1 Accent: Royal Blue */
 .badge-info {
-    background-color: rgba(59, 130, 246, 0.15);
-    color: #60A5FA;
-    border: 1px solid rgba(59, 130, 246, 0.3);
+    background-color: #DBEAFE;
+    color: #1E40AF;
+    border: 1px solid #BFDBFE;
 }
 
-/* Feature Mockup Layout cards */
-.feature-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.25rem;
-    margin-top: 1.5rem;
-}
-
-@media (max-width: 768px) {
-    .feature-grid {
-        grid-template-columns: 1fr;
-    }
-}
-
-.feature-box {
-    background: rgba(30, 41, 59, 0.3);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    border-radius: 12px;
-    padding: 1.25rem;
-    transition: all 0.3s ease;
-}
-
-.feature-box:hover {
-    background: rgba(30, 41, 59, 0.6);
-    border-color: rgba(99, 102, 241, 0.3);
-}
-
-.feature-icon {
-    font-size: 1.5rem;
-    margin-bottom: 0.75rem;
-    display: inline-block;
-}
-
-.feature-name {
-    font-size: 1.05rem;
-    font-weight: 600;
-    color: #F8FAFC;
-    margin-bottom: 0.25rem;
-}
-
-.feature-desc {
-    font-size: 0.85rem;
-    color: #94A3B8;
-    line-height: 1.4;
-}
-
-.empty-description {
-    color: #94A3B8;
-    font-size: 1.05rem;
-    font-weight: 400;
-    max-width: 650px;
-    margin: 0 auto;
-    line-height: 1.7;
-    letter-spacing: 0.01em;
-}
-
-/* Footer Section */
-.footer-text {
-    text-align: center;
-    color: #64748B;
-    font-size: 0.8rem;
-    margin-top: 3rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-/* Smooth transition for streamlit standard widgets */
-button[kind="secondary"] {
-    background-color: rgba(30, 41, 59, 0.5) !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-    color: #F1F5F9 !important;
-    border-radius: 8px !important;
-    transition: all 0.3s ease !important;
-}
-
-button[kind="secondary"]:hover {
-    background-color: rgba(59, 130, 246, 0.2) !important;
-    border-color: rgba(59, 130, 246, 0.5) !important;
+/* Buttons */
+div.stButton>button {
+    background-color: #2563EB !important;
     color: #FFFFFF !important;
-    box-shadow: 0 0 12px rgba(59, 130, 246, 0.25) !important;
+    border-radius: 8px !important;
+    border: none !important;
+    font-weight: 600 !important;
+    transition: all 0.2s ease !important;
+}
+
+div.stButton>button:hover {
+    background-color: #1D4ED8 !important;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25) !important;
 }

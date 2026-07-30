@@ -4,6 +4,7 @@ from components.empty_state import render_empty_state
 from components.errors import render_error_banner, render_warning_banner
 from components.loaders import render_skeleton_loader, render_section_loader
 from components.overview_card import render_company_overview_module
+from components.dashboard_landing import render_executive_dashboard
 from components.historical_chart import render_time_range_selector, render_historical_price_chart
 from components.ratio_cards import render_company_ratios_module
 from components.news_cards import render_news_sentiment_module
@@ -24,6 +25,7 @@ __all__ = [
     "render_skeleton_loader",
     "render_section_loader",
     "render_company_overview_module",
+    "render_executive_dashboard",
     "render_time_range_selector",
     "render_historical_price_chart",
     "render_company_ratios_module",

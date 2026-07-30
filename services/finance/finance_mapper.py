@@ -51,7 +51,7 @@ class FinanceMapper:
         """
         Maps raw yfinance info details to FinancialMetrics dataclass.
         """
-        currency = raw_info.get("financialCurrency") or "USD"
+        currency = "£"
 
         # Float conversion helper
         def get_float(key: str) -> Any:

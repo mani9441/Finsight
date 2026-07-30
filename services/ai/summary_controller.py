@@ -34,14 +34,14 @@ class SummaryController:
         ticker_str = ticker.strip().upper()
         logger.info(f"SummaryController: Initiating request for ticker: '{ticker_str}'")
 
-        # Context validation check: Ensure all previous modules completed with valid records
+        # Context validation check: Ensure all required context models are present (non-None)
         if not overview or not ratios or not sentiment or not risk:
             logger.error(f"SummaryController: Incomplete context models for '{ticker_str}'")
             raise DataRetrievalError(
                 "AI summary cannot be generated because required financial information is incomplete."
             )
 
-        # Check ratios content: If the main financial ratios metrics are all None, fail summary validation
+        # Verify ratios contains actual numeric data (not just an empty object)
         has_any_ratio = any(
             val is not None for val in [
                 ratios.pe_ratio,
@@ -55,6 +55,28 @@ class SummaryController:
             logger.error(f"SummaryController: Key ratios metrics are empty for '{ticker_str}'")
             raise DataRetrievalError(
                 "AI summary cannot be generated because required financial information is incomplete."
+            )
+
+        # Ensure overview has basic company info
+        if not overview.name or not overview.business_summary:
+            logger.error(f"SummaryController: Overview is missing essential fields for '{ticker_str}'")
+            raise DataRetrievalError(
+                "AI summary cannot be generated because company information is incomplete."
+            )
+
+        # Ensure sentiment has data
+        if sentiment.average_score is None:
+            logger.error(f"SummaryController: Sentiment data is incomplete for '{ticker_str}'")
+            raise DataRetrievalError(
+                "AI summary cannot be generated because sentiment information is incomplete."
+            )
+
+        # Ensure risk assessment has risk factors (if risk score is calculated)
+        # Note: risk rules engine always produces at least one list factor or level info
+        if not risk.risk_level:
+            logger.error(f"SummaryController: Risk assessment level is missing for '{ticker_str}'")
+            raise DataRetrievalError(
+                "AI summary cannot be generated because risk assessment is incomplete."
             )
 
         start_time = time.time()
