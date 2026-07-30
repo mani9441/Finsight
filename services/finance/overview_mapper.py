@@ -23,7 +23,7 @@ class CompanyOverviewMapper:
         
         name = raw_info.get("longName") or raw_info.get("shortName") or ticker_upper
         exchange = raw_info.get("exchange") or "Not Available"
-        currency = "£"
+        currency = raw_info.get("financialCurrency") or raw_info.get("currency") or "USD"
         sector = raw_info.get("sector") or "Not Available"
         industry = raw_info.get("industry") or "Not Available"
         country = raw_info.get("country") or "Not Available"

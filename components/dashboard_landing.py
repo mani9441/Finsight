@@ -84,8 +84,8 @@ def render_executive_dashboard(
         with h_col1:
             exchange_lbl = overview.exchange if overview and overview.exchange else "NASDAQ"
             st.markdown(
-                f"### {profile.name} ({profile.ticker}) "
-                f"<span style='font-size: 0.9rem; color: #64748B;'>{exchange_lbl}</span>",
+                f"<h3 style='margin: 0;'>{profile.name} ({profile.ticker}) "
+                f"<span style='font-size: 0.9rem; color: #64748B; font-weight: normal; margin-left: 8px;'>{exchange_lbl}</span></h3>",
                 unsafe_allow_html=True,
             )
 
@@ -93,12 +93,12 @@ def render_executive_dashboard(
             if price_change_str:
                 color = "#059669" if is_positive_change else "#DC2626"
                 st.markdown(
-                    f"## {latest_price_str} "
-                    f"<span style='font-size: 1.1rem; color: {color}; font-weight: 600;'>{price_change_str}</span>",
+                    f"<h2 style='margin: 0;'>{latest_price_str} "
+                    f"<span style='font-size: 1.1rem; color: {color}; font-weight: 600; margin-left: 10px;'>{price_change_str}</span></h2>",
                     unsafe_allow_html=True,
                 )
             else:
-                st.markdown(f"## {latest_price_str}")
+                st.markdown(f"<h2 style='margin: 0;'>{latest_price_str}</h2>", unsafe_allow_html=True)
 
         with h_col2:
             if profile.website:

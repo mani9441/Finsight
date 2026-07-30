@@ -90,7 +90,7 @@ class TestFinancialOverviewModule(unittest.TestCase):
         self.assertEqual(overview.name, "XYZ Corp")
         self.assertEqual(overview.ticker, "XYZ")
         self.assertEqual(overview.exchange, "Not Available")
-        self.assertEqual(overview.currency, "Not Available")
+        self.assertEqual(overview.currency, "USD")
         self.assertEqual(overview.sector, "Energy")
         self.assertEqual(overview.industry, "Not Available")
         self.assertEqual(overview.country, "Not Available")
