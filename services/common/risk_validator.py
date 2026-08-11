@@ -37,15 +37,18 @@ class RiskValidator:
         # 3. Minimum field completeness validation
         # Assert that at least one of the major ratio metric descriptors or sentiment summaries are available.
         # If all major scoring metrics are missing, reject as incomplete.
-        has_any_ratio = any(
-            val is not None for val in [
-                ratios.pe_ratio,
-                ratios.pb_ratio,
-                ratios.roe,
-                ratios.profit_margin,
-                ratios.eps
-            ]
-        )
+        ratio_values = [
+            ratios.pe_ratio,
+            ratios.pb_ratio,
+            ratios.roe,
+            ratios.profit_margin,
+            ratios.eps
+        ]
+        has_any_ratio = False
+        for val in ratio_values:
+            if val is not None:
+                has_any_ratio = True
+                break
         
         if not has_any_ratio:
             logger.warning("Risk assessment failed: ratio models contain all null values.")

@@ -73,10 +73,10 @@ def render_company_overview_module(overview: CompanyOverview):
         elif market_cap_str == "N/A":
             market_cap_str = "Not Available"
 
-        website_html = (
-            f'<a href="{overview.website}" target="_blank" style="color: #2563EB; text-decoration: none; font-weight: 600;">{overview.website}</a>'
-            if overview.website else '<span style="color: #94A3B8;">Not Available</span>'
-        )
+        if overview.website:
+            website_html = f'<a href="{overview.website}" target="_blank" style="color: #2563EB; text-decoration: none; font-weight: 600;">{overview.website}</a>'
+        else:
+            website_html = '<span style="color: #94A3B8;">Not Available</span>'
 
         st.markdown(
             f"""

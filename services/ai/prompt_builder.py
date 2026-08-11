@@ -33,6 +33,11 @@ class PromptBuilder:
             "eps": f"{ratios.currency} {ratios.eps:.2f}" if ratios.eps is not None else "Not Available"
         }
 
+        factor_lines = []
+        for factor in risk.risk_factors:
+            factor_lines.append(f"- {factor}")
+        formatted_factors = "\n".join(factor_lines)
+
         prompt = f"""You are an expert financial explanation layer.
 Analyze the following corporate metadata, financial indicators, recent news sentiment averages, and computed risk assessment factors for {overview.name} ({overview.ticker}).
 
@@ -65,7 +70,7 @@ Negative Count: {sentiment.negative_count}
 ### 4. COMPUTED RISK ASSESSMENT
 Overall Risk Level: {risk.risk_level}
 Risk Factors / Considerations Identified:
-{chr(10).join([f'- {factor}' for factor in risk.risk_factors])}
+{formatted_factors}
 Detailed Explanation: {risk.risk_explanation}
 
 ### RESPONSE FORMAT:

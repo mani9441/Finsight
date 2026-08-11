@@ -6,11 +6,19 @@ from datetime import datetime, timedelta
 from typing import Union, Optional
 import math
 
+def is_invalid_number(val: Union[int, float, None]) -> bool:
+    """Helper to check if a value is None or NaN (Not a Number)."""
+    if val is None:
+        return True
+    if isinstance(val, float) and math.isnan(val):
+        return True
+    return False
+
 def format_currency(val: Union[int, float, None], currency_symbol: str = "$") -> str:
     """
     Formats a numeric value as currency (e.g., $1,234.56).
     """
-    if val is None or (isinstance(val, float) and math.isnan(val)):
+    if is_invalid_number(val):
         return "N/A"
     return f"{currency_symbol}{val:,.2f}"
 
@@ -23,22 +31,26 @@ def format_large_number(val: Union[int, float, None]) -> str:
       3,450,000,000 -> 3.45B
       15,000 -> 15.00K
     """
-    if val is None or (isinstance(val, float) and math.isnan(val)):
+    if is_invalid_number(val):
         return "N/A"
 
-    sign = "-" if val < 0 else ""
-    val = abs(val)
-
-    if val >= 1e12:
-        return f"{sign}{val / 1e12:.2f}T"
-    elif val >= 1e9:
-        return f"{sign}{val / 1e9:.2f}B"
-    elif val >= 1e6:
-        return f"{sign}{val / 1e6:.2f}M"
-    elif val >= 1e3:
-        return f"{sign}{val / 1e3:.2f}K"
+    if val < 0:
+        sign = "-"
     else:
-        return f"{sign}{val:.2f}"
+        sign = ""
+        
+    number = abs(val)
+
+    if number >= 1e12:
+        return f"{sign}{number / 1e12:.2f}T"
+    elif number >= 1e9:
+        return f"{sign}{number / 1e9:.2f}B"
+    elif number >= 1e6:
+        return f"{sign}{number / 1e6:.2f}M"
+    elif number >= 1e3:
+        return f"{sign}{number / 1e3:.2f}K"
+    else:
+        return f"{sign}{number:.2f}"
 
 
 def format_percent(val: Union[int, float, None], is_multiplier: bool = False) -> str:
@@ -46,11 +58,18 @@ def format_percent(val: Union[int, float, None], is_multiplier: bool = False) ->
     Formats a decimal or multiplier value as a percentage.
     If is_multiplier is True, multiplies by 100 first (e.g. 0.057 -> 5.70%).
     """
-    if val is None or (isinstance(val, float) and math.isnan(val)):
+    if is_invalid_number(val):
         return "N/A"
     
-    scaled_val = val * 100.0 if is_multiplier else val
-    return f"{scaled_val:+.2f}%" if scaled_val != 0 else f"{scaled_val:.2f}%"
+    if is_multiplier:
+        scaled_val = val * 100.0
+    else:
+        scaled_val = val
+        
+    if scaled_val != 0:
+        return f"{scaled_val:+.2f}%"
+    else:
+        return f"{scaled_val:.2f}%"
 
 
 def get_date_range_days_ago(days: int) -> tuple[datetime, datetime]:

@@ -29,7 +29,10 @@ def render_company_summary_module(summary: AISummary):
     col1, col2 = st.columns(2)
     
     with col1:
-        strengths_list = "".join([f'<li style="margin-bottom: 0.5rem; color: #334155;">{s}</li>' for s in summary.strengths])
+        s_items = []
+        for s in summary.strengths:
+            s_items.append(f'<li style="margin-bottom: 0.5rem; color: #334155;">{s}</li>')
+        strengths_list = "".join(s_items)
         st.markdown(
             f"""
             <div class="glass-card" style="margin-bottom: 1.5rem; padding: 1.25rem; border-left: 4px solid #059669; min-height: 200px;">
@@ -45,7 +48,10 @@ def render_company_summary_module(summary: AISummary):
         )
 
     with col2:
-        weaknesses_list = "".join([f'<li style="margin-bottom: 0.5rem; color: #334155;">{w}</li>' for w in summary.weaknesses])
+        w_items = []
+        for w in summary.weaknesses:
+            w_items.append(f'<li style="margin-bottom: 0.5rem; color: #334155;">{w}</li>')
+        weaknesses_list = "".join(w_items)
         st.markdown(
             f"""
             <div class="glass-card" style="margin-bottom: 1.5rem; padding: 1.25rem; border-left: 4px solid #E11D48; min-height: 200px;">

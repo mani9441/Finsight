@@ -30,9 +30,16 @@ class Settings:
         # Parse debug mode: defaults to True in development/testing, False in production
         debug_str = os.getenv("DEBUG")
         if debug_str is not None:
-            self.DEBUG: bool = debug_str.lower() in ("true", "1", "t", "yes", "y")
+            clean_debug = debug_str.lower()
+            if clean_debug in ["true", "1", "t", "yes", "y"]:
+                self.DEBUG: bool = True
+            else:
+                self.DEBUG: bool = False
         else:
-            self.DEBUG: bool = self.APP_ENV != "production"
+            if self.APP_ENV == "production":
+                self.DEBUG: bool = False
+            else:
+                self.DEBUG: bool = True
 
         # Log level validation
         self.LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO").upper()

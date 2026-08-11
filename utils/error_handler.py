@@ -37,7 +37,7 @@ def is_connection_error(e: Exception) -> bool:
     
     # Check causal exception chain
     cause = getattr(e, "__cause__", None)
-    if cause and isinstance(cause, Exception):
+    if cause is not None and isinstance(cause, Exception):
         if is_connection_error(cause):
             return True
             
@@ -54,7 +54,10 @@ def is_connection_error(e: Exception) -> bool:
         "timeout",
         "socket.timeout"
     ]
-    return any(ind in err_str for ind in indicators)
+    for text in indicators:
+        if text in err_str:
+            return True
+    return False
 
 def is_rate_limit(e: Exception) -> bool:
     """Identifies if the exception is due to rate limits or API quotas being exceeded."""
@@ -66,7 +69,10 @@ def is_rate_limit(e: Exception) -> bool:
         "limit has been reached",
         "quota exceeded"
     ]
-    return any(ind in err_str for ind in indicators)
+    for text in indicators:
+        if text in err_str:
+            return True
+    return False
 
 def get_friendly_message(e: Exception, module_name: str) -> str:
     """

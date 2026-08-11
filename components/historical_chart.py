@@ -130,11 +130,17 @@ def render_historical_price_chart(prices: List[HistoricalPrice], ticker: str, cu
     pct_change = ((end_close - start_close) / start_close) * 100
     change_val = end_close - start_close
     
-    is_positive = pct_change >= 0
-    theme_color = "#10B981" if is_positive else "#EF4444"  # Green vs Red dynamic color scheme
-    bg_gradient = "rgba(16, 185, 129, 0.08)" if is_positive else "rgba(239, 68, 68, 0.08)"
-    pill_class = "metric-pill-pos" if is_positive else "metric-pill-neg"
-    sign = "+" if is_positive else ""
+    is_positive = (pct_change >= 0)
+    if is_positive:
+        theme_color = "#10B981"
+        bg_gradient = "rgba(16, 185, 129, 0.08)"
+        pill_class = "metric-pill-pos"
+        sign = "+"
+    else:
+        theme_color = "#EF4444"
+        bg_gradient = "rgba(239, 68, 68, 0.08)"
+        pill_class = "metric-pill-neg"
+        sign = ""
 
     # Header with ticker & performance badge
     st.markdown(

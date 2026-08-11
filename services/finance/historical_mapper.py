@@ -37,11 +37,30 @@ class HistoricalDataMapper:
                 volume_val = row.get("Volume")
 
                 # Convert to clean numeric formats
-                parsed_open = float(open_val) if open_val is not None else 0.0
-                parsed_high = float(high_val) if high_val is not None else 0.0
-                parsed_low = float(low_val) if low_val is not None else 0.0
-                parsed_close = float(close_val) if close_val is not None else 0.0
-                parsed_volume = int(volume_val) if volume_val is not None else 0
+                if open_val is not None:
+                    parsed_open = float(open_val)
+                else:
+                    parsed_open = 0.0
+
+                if high_val is not None:
+                    parsed_high = float(high_val)
+                else:
+                    parsed_high = 0.0
+
+                if low_val is not None:
+                    parsed_low = float(low_val)
+                else:
+                    parsed_low = 0.0
+
+                if close_val is not None:
+                    parsed_close = float(close_val)
+                else:
+                    parsed_close = 0.0
+
+                if volume_val is not None:
+                    parsed_volume = int(volume_val)
+                else:
+                    parsed_volume = 0
 
                 prices.append(
                     HistoricalPrice(
